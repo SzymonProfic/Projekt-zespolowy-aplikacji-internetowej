@@ -6,7 +6,7 @@ Foundly ma połączyć osoby, które zgubiły przedmiot, z osobami, które go zn
 
 Projekt powstaje w ramach przedmiotu **„Projekt zespołowy aplikacji internetowej”** na **Politechnice Częstochowskiej, w Katedrze Informatyki**, w roku akademickim **2026/2027**. Realizuje go trzyosobowy zespół, którego celem jest przygotowanie funkcjonalnego MVP.
 
-> **Status: przygotowanie projektu.** Repozytorium zawiera obecnie ten README oraz szkielet katalogów i plików projektu. Poniższy opis przedstawia planowany zakres systemu. Kod aplikacji, konfiguracja środowiska i instrukcje uruchomienia będą dodawane wraz z implementacją.
+> **Status: przygotowanie projektu.** Repozytorium zawiera szkielet backendu Spring Boot z konfiguracją Maven oraz katalogi frontendu i dokumentacji. Poniższy opis przedstawia planowany zakres systemu. Funkcje aplikacji i konfiguracja środowiska będą dodawane wraz z implementacją.
 
 ## Spis treści
 
@@ -98,8 +98,8 @@ Docelowo komponenty systemu będą uruchamiane w kontenerach Docker. Szczegóły
 | --- | --- |
 | Frontend | React, TypeScript, Vite, React Router, Tailwind CSS |
 | Komunikacja | REST API; wybór klienta HTTP do ustalenia |
-| Backend | Technologia do wyboru; obsługa CRUD, walidacji, autoryzacji i dopasowywania |
-| Baza danych | Do wyboru na etapie projektowania modelu danych |
+| Backend | Java 21, Spring Boot, Spring Web MVC, Spring Data JPA, Maven |
+| Baza danych | PostgreSQL; sterownik dodany do backendu, połączenie i model danych do skonfigurowania |
 | Uwierzytelnianie | Rozważane: Keycloak lub rozwiązanie typu Identity; ostateczny wybór do ustalenia |
 | Środowisko uruchomieniowe | Docker, Docker Compose |
 | Dokumentacja API | OpenAPI, Swagger UI |
@@ -139,12 +139,24 @@ Przygotowany podział katalogów:
 │   │   ├── types/         # Typy TypeScript
 │   │   └── utils/         # Funkcje pomocnicze
 │   └── Dockerfile
-├── backend/               # REST API i logika biznesowa
+├── foundly-backend/        # REST API i logika biznesowa; moduł Maven
+│   ├── pom.xml            # Zależności i konfiguracja kompilacji Java 21
+│   ├── mvnw               # Maven Wrapper dla Linux/macOS
+│   ├── mvnw.cmd           # Maven Wrapper dla Windows
+│   ├── .mvn/wrapper/      # Konfiguracja Maven Wrapper
 │   ├── src/
-│   │   ├── controllers/   # Obsługa żądań API
-│   │   ├── services/      # Logika biznesowa
-│   │   ├── repositories/  # Dostęp do danych
-│   │   └── models/        # Modele danych
+│   │   ├── main/
+│   │   │   ├── java/pl/szymonprofic/foundlybackend/
+│   │   │   │   ├── FoundlyBackendApplication.java
+│   │   │   │   ├── controllers/   # Obsługa żądań API
+│   │   │   │   ├── services/      # Logika biznesowa
+│   │   │   │   ├── repositories/  # Dostęp do danych
+│   │   │   │   ├── models/        # Modele danych
+│   │   │   │   └── matching/      # Dopasowywanie zgłoszeń
+│   │   │   └── resources/
+│   │   │       └── application.properties
+│   │   └── test/java/pl/szymonprofic/foundlybackend/
+│   │       └── FoundlyBackendApplicationTests.java
 │   └── Dockerfile
 ├── docs/                  # Dokumentacja projektu
 ├── docker-compose.yml     # Konfiguracja usług lokalnych
@@ -153,9 +165,22 @@ Przygotowany podział katalogów:
 
 Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Pliki `Dockerfile` i `docker-compose.yml` są na razie puste i wymagają uzupełnienia podczas implementacji.
 
+### Moduł backendu i import w IntelliJ IDEA
+
+Backend jest jednym modułem Maven, opisanym przez `foundly-backend/pom.xml`. Katalogi `controllers`, `services`, `repositories`, `models` i `matching` są pakietami Javy wewnątrz tego modułu. Klasy należy umieszczać pod pakietem `pl.szymonprofic.foundlybackend`, aby znajdowały się w obszarze skanowania klasy startowej Spring Boot.
+
+Główny katalog repozytorium jest zwykłym folderem projektu, bez własnego modułu IntelliJ. Jedynym modułem jest `foundly-backend`. Frontend jest osobną aplikacją React i nie wymaga modułu Javy. Na tym etapie nie są potrzebne nadrzędny `pom.xml` ani plik `module-info.java`.
+
+1. Otwórz główny katalog repozytorium w IntelliJ IDEA.
+2. Jeśli backend nie jest jeszcze widoczny w oknie Maven, kliknij prawym przyciskiem `foundly-backend/pom.xml` i wybierz **Add as Maven Project**.
+3. Ustaw SDK projektu i JDK dla Maven na **Java 21**.
+4. Po synchronizacji Maven IDE powinno oznaczyć `src/main/java` jako źródła, `src/test/java` jako testy, a `src/main/resources` jako zasoby.
+
+Konfiguracja `.idea/` oraz pliki `*.iml` są lokalne i pomijane przez Git. Źródłem konfiguracji backendu dla zespołu jest `pom.xml`.
+
 ## Uruchomienie lokalne
 
-**Aplikacja nie jest jeszcze dostępna do uruchomienia.** Repozytorium nie zawiera kodu usług, a pliki `Dockerfile` i `docker-compose.yml` nie mają jeszcze konfiguracji.
+**Pełna aplikacja nie jest jeszcze dostępna do uruchomienia.** Backend zawiera klasę startową Spring Boot, ale nie ma jeszcze implementacji API ani konfiguracji połączenia z PostgreSQL. Frontend jest szkieletem katalogów, a pliki `Dockerfile` i `docker-compose.yml` są puste.
 
 Repozytorium można pobrać poleceniami:
 
@@ -163,6 +188,17 @@ Repozytorium można pobrać poleceniami:
 git clone https://github.com/SzymonProfic/Projekt-zespolowy-aplikacji-internetowej.git
 cd Projekt-zespolowy-aplikacji-internetowej
 ```
+
+Do kompilacji backendu potrzebny jest JDK 21 oraz poprawnie ustawione `JAVA_HOME`. Maven Wrapper pobiera wersję Maven wskazaną w `.mvn/wrapper/maven-wrapper.properties`, więc osobna instalacja Maven nie jest wymagana.
+
+Kompilacja backendu i źródeł testowych bez uruchamiania testu kontekstu Spring:
+
+```bash
+cd foundly-backend
+./mvnw -DskipTests package
+```
+
+W Windows użyj `mvnw.cmd -DskipTests package`. Uruchomienie backendu i testu `contextLoads` wymaga jeszcze skonfigurowania dostępnej bazy PostgreSQL (`spring.datasource.url`, `spring.datasource.username`, `spring.datasource.password`).
 
 Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowiska będzie wymagało zainstalowanego Dockera z Docker Compose i polecenia:
 
