@@ -1,0 +1,10 @@
+# Lokalna konfiguracja IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Wyniki kompilacji i pliki systemowe
+**/target/
+/out/
+.DS_Store
