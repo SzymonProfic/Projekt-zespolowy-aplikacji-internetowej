@@ -180,7 +180,7 @@ Konfiguracja `.idea/` oraz pliki `*.iml` są lokalne i pomijane przez Git. Źró
 
 ## Uruchomienie lokalne
 
-**Pełna aplikacja nie jest jeszcze dostępna do uruchomienia.** Backend zawiera klasę startową Spring Boot, ale nie ma jeszcze implementacji API ani konfiguracji połączenia z PostgreSQL. Frontend jest szkieletem katalogów, a pliki `Dockerfile` i `docker-compose.yml` są puste.
+Backend można uruchomić lokalnie z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów, a pliki `Dockerfile` i `docker-compose.yml` są puste.
 
 Repozytorium można pobrać poleceniami:
 
@@ -191,14 +191,20 @@ cd Projekt-zespolowy-aplikacji-internetowej
 
 Do kompilacji backendu potrzebny jest JDK 21 oraz poprawnie ustawione `JAVA_HOME`. Maven Wrapper pobiera wersję Maven wskazaną w `.mvn/wrapper/maven-wrapper.properties`, więc osobna instalacja Maven nie jest wymagana.
 
-Kompilacja backendu i źródeł testowych bez uruchamiania testu kontekstu Spring:
+Uruchomienie backendu:
 
 ```bash
 cd foundly-backend
-./mvnw -DskipTests package
+./mvnw spring-boot:run
 ```
 
-W Windows użyj `mvnw.cmd -DskipTests package`. Uruchomienie backendu i testu `contextLoads` wymaga jeszcze skonfigurowania dostępnej bazy PostgreSQL (`spring.datasource.url`, `spring.datasource.username`, `spring.datasource.password`).
+W Windows użyj `mvnw.cmd spring-boot:run`. Testy uruchomisz poleceniem `./mvnw test`.
+
+- Endpoint testowy: http://localhost:8080/api/v1/test (zwraca `test`).
+- Konsola H2: http://localhost:8080/h2-console.
+- Dane logowania do konsoli: JDBC URL `jdbc:h2:mem:foundly`, użytkownik `sa`, hasło puste.
+
+Baza H2 służy do pracy lokalnej. Dane są usuwane po zatrzymaniu aplikacji. Docelowe połączenie z PostgreSQL będzie wymagało osobnej konfiguracji.
 
 Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowiska będzie wymagało zainstalowanego Dockera z Docker Compose i polecenia:
 
