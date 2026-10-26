@@ -163,7 +163,7 @@ Przygotowany podział katalogów:
 └── README.md
 ```
 
-Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Pliki `Dockerfile` i `docker-compose.yml` są na razie puste i wymagają uzupełnienia podczas implementacji.
+Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Backend ma gotowy `Dockerfile`. Pliki `frontend/Dockerfile` i `docker-compose.yml` są na razie puste i wymagają uzupełnienia podczas implementacji.
 
 ### Moduł backendu i import w IntelliJ IDEA
 
@@ -180,7 +180,9 @@ Konfiguracja `.idea/` oraz pliki `*.iml` są lokalne i pomijane przez Git. Źró
 
 ## Uruchomienie lokalne
 
-Backend można uruchomić lokalnie z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów, a pliki `Dockerfile` i `docker-compose.yml` są puste.
+Szczegółowe instrukcje budowania, uruchamiania, testowania i obsługi kontenera znajdują się w [devops.md](docs/devops.md).
+
+Backend można uruchomić lokalnie lub w kontenerze z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów, a pliki `frontend/Dockerfile` i `docker-compose.yml` są puste.
 
 Repozytorium można pobrać poleceniami:
 
@@ -205,6 +207,21 @@ W Windows użyj `mvnw.cmd spring-boot:run`. Testy uruchomisz poleceniem `./mvnw 
 - Dane logowania do konsoli: JDBC URL `jdbc:h2:mem:foundly`, użytkownik `sa`, hasło puste.
 
 Baza H2 służy do pracy lokalnej. Dane są usuwane po zatrzymaniu aplikacji. Docelowe połączenie z PostgreSQL będzie wymagało osobnej konfiguracji.
+
+### Backend w Dockerze
+
+Z głównego katalogu repozytorium wykonaj:
+
+```bash
+docker build -t foundly-backend ./foundly-backend
+docker run --rm --name foundly-backend -p 8080:8080 foundly-backend
+```
+
+Wymagany jest uruchomiony Docker; lokalna instalacja Javy i Maven nie jest potrzebna. Obraz jest budowany w dwóch etapach: Maven Wrapper kompiluje aplikację i uruchamia testy na JDK 21, a końcowy obraz zawiera JRE 21 i plik JAR. Aplikacja działa jako użytkownik bez uprawnień roota.
+
+Endpoint testowy jest dostępny pod adresem http://localhost:8080/api/v1/test. Kontener korzysta z opisanej wyżej bazy H2 w pamięci. Zatrzymasz go poleceniem `docker stop foundly-backend` w drugim terminalu.
+
+### Całe środowisko (planowane)
 
 Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowiska będzie wymagało zainstalowanego Dockera z Docker Compose i polecenia:
 
