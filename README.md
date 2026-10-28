@@ -138,7 +138,9 @@ Przygotowany podział katalogów:
 │   │   ├── hooks/         # Własne hooki React
 │   │   ├── types/         # Typy TypeScript
 │   │   └── utils/         # Funkcje pomocnicze
-│   └── Dockerfile
+│   ├── .dockerignore
+│   ├── nginx.conf        # Serwowanie plików i obsługa tras SPA
+│   └── Dockerfile        # Szablon budowania React + TypeScript + Vite
 ├── foundly-backend/        # REST API i logika biznesowa; moduł Maven
 │   ├── pom.xml            # Zależności i konfiguracja kompilacji Java 21
 │   ├── mvnw               # Maven Wrapper dla Linux/macOS
@@ -159,11 +161,12 @@ Przygotowany podział katalogów:
 │   │       └── FoundlyBackendApplicationTests.java
 │   └── Dockerfile
 ├── docs/                  # Dokumentacja projektu
-├── docker-compose.yml     # Konfiguracja usług lokalnych
+├── .env.example           # Szablon lokalnej konfiguracji PostgreSQL
+├── docker-compose.yml     # Szablon usługi PostgreSQL
 └── README.md
 ```
 
-Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Backend ma gotowy `Dockerfile`. Pliki `frontend/Dockerfile` i `docker-compose.yml` są na razie puste i wymagają uzupełnienia podczas implementacji.
+Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Backend ma gotowy `Dockerfile`. Frontend ma szablon `Dockerfile` dla React + TypeScript + Vite, wymagający dodania kodu aplikacji i plików npm. Plik `docker-compose.yml` zawiera szablon usługi PostgreSQL z trwałym wolumenem i healthcheckiem.
 
 ### Moduł backendu i import w IntelliJ IDEA
 
@@ -182,7 +185,7 @@ Konfiguracja `.idea/` oraz pliki `*.iml` są lokalne i pomijane przez Git. Źró
 
 Szczegółowe instrukcje budowania, uruchamiania, testowania i obsługi kontenera znajdują się w [devops.md](docs/devops.md).
 
-Backend można uruchomić lokalnie lub w kontenerze z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów, a pliki `frontend/Dockerfile` i `docker-compose.yml` są puste.
+Backend można uruchomić lokalnie lub w kontenerze z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów z przygotowanym szablonem Dockerfile; wymagania i polecenia opisano w [devops.md](docs/devops.md#frontend-w-dockerze-szablon). Compose pozwala uruchomić osobną bazę PostgreSQL zgodnie z [instrukcją konfiguracji](docs/devops.md#postgresql-w-docker-compose-szablon).
 
 Repozytorium można pobrać poleceniami:
 
@@ -221,6 +224,16 @@ Wymagany jest uruchomiony Docker; lokalna instalacja Javy i Maven nie jest potrz
 
 Endpoint testowy jest dostępny pod adresem http://localhost:8080/api/v1/test. Kontener korzysta z opisanej wyżej bazy H2 w pamięci. Zatrzymasz go poleceniem `docker stop foundly-backend` w drugim terminalu.
 
+### PostgreSQL w Docker Compose
+
+W głównym katalogu repozytorium skopiuj `.env.example` do `.env` i ustaw w nim własne hasło, a następnie uruchom:
+
+```bash
+docker compose up -d --wait db
+```
+
+Compose uruchamia na razie samą bazę. Backend domyślnie korzysta z H2. Parametry połączenia, obsługę wolumenu i przyszłą integrację opisano w [devops.md](docs/devops.md#postgresql-w-docker-compose-szablon).
+
 ### Całe środowisko (planowane)
 
 Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowiska będzie wymagało zainstalowanego Dockera z Docker Compose i polecenia:
@@ -229,7 +242,7 @@ Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowi
 docker compose up --build
 ```
 
-Powyższe polecenie będzie dostępne dopiero po uzupełnieniu plików Dockera i dodaniu kodu aplikacji. Wraz z implementacją ta sekcja zostanie uzupełniona o wymagane wersje narzędzi, zmienne środowiskowe, inicjalizację bazy danych, adres aplikacji, API i Swagger UI oraz konfigurację usługi uwierzytelniania.
+Powyższe polecenie uruchamia obecnie tylko bazę. Uruchomienie całego środowiska będzie możliwe po dodaniu usług backendu i frontendu do Compose oraz kodu aplikacji. Wraz z implementacją ta sekcja zostanie uzupełniona o adresy aplikacji, API i Swagger UI oraz konfigurację usługi uwierzytelniania.
 
 ## REST API
 
