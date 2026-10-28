@@ -107,7 +107,53 @@ docker run -d --rm --name foundly-backend -p 8080:8080 foundly-backend
 
 Polecenie `docker stop` jest potrzebne, jeśli poprzedni kontener nadal działa.
 
-## Sprawdzenie działania
+## Frontend w Dockerze (szablon)
+
+W `frontend/` przygotowano szablon dla React + TypeScript + Vite z menedżerem npm. **Na tym etapie nie można jeszcze zbudować obrazu frontendu**, ponieważ repozytorium nie zawiera kodu aplikacji ani plików npm.
+
+### Wymagania przed pierwszym budowaniem
+
+W katalogu `frontend/` należy dodać:
+
+- `package.json` z zależnościami React, TypeScript i Vite oraz skryptem `build`, np. `"build": "tsc -b && vite build"` dla projektu z konfiguracją TypeScript obsługującą `tsc -b`;
+- `package-lock.json` wygenerowany przez `npm install` i zapisany w repozytorium — Dockerfile używa `npm ci`, które wymaga zgodnego lockfile;
+- `index.html`, kod aplikacji w `src/` oraz konfigurację TypeScript i Vite.
+
+Build powinien zapisywać gotową aplikację w `dist/`, zgodnie z domyślnym ustawieniem Vite. Po zmianie `build.outDir` trzeba dostosować ścieżkę `COPY --from=build` w Dockerfile. Przy implementacji zachowaj przygotowane pliki `Dockerfile`, `nginx.conf` i `.dockerignore`.
+
+### Jak działa obraz
+
+1. Etap `build` korzysta z Node.js 24, instaluje zależności przez `npm ci` i wykonuje `npm run build`. Zależności deweloperskie są potrzebne do kompilacji TypeScript i uruchomienia Vite.
+2. Końcowy obraz `nginx/nginx-unprivileged:stable-alpine` otrzymuje tylko wynik z `dist/` i konfigurację serwera. Serwuje aplikację jako użytkownik bez uprawnień roota na porcie `8080`.
+
+`nginx.conf` przekierowuje trasy aplikacji na `index.html`, aby odświeżenie strony React Routera, np. `/ogloszenia/123`, działało poprawnie. Brakujące pliki w `/assets/` zwracają `404`.
+
+Plik `frontend/.dockerignore` wyklucza m.in. lokalne `node_modules/`, `dist/` i pliki `.env`. Własna konfiguracja przez zmienne `VITE_*` będzie wymagała dodania odpowiednich `ARG`/`ENV` w etapie budowania. Vite zapisuje ich wartości w publicznych plikach aplikacji, więc nie należy umieszczać w nich sekretów. Samo `docker run -e VITE_...` nie zmieni już zbudowanej aplikacji.
+
+### Budowanie i uruchamianie po dodaniu aplikacji
+
+Z głównego katalogu repozytorium:
+
+```bash
+docker build -t foundly-frontend ./frontend
+docker run --rm --name foundly-frontend -p 3000:8080 foundly-frontend
+```
+
+Frontend będzie dostępny pod adresem http://localhost:3000. Port `3000` komputera pozwala uruchomić go równolegle z backendem dostępnym na porcie `8080`. Do budowania w Dockerze nie trzeba instalować lokalnie Node.js ani npm.
+
+Zatrzymanie z drugiego terminala:
+
+```bash
+docker stop foundly-frontend
+```
+
+Po zmianie kodu należy ponownie zbudować obraz i uruchomić nowy kontener. Do codziennej pracy z automatycznym odświeżaniem używaj serwera Vite (`npm run dev`) po dodaniu aplikacji.
+
+Szablon serwuje frontend. Połączenie z API (adres backendu, CORS lub proxy Nginx) trzeba skonfigurować przy integracji. `docker-compose.yml` zawiera na razie tylko bazę danych, więc uruchamianie całego środowiska przez Compose nie jest jeszcze dostępne.
+
+Źródła: [budowanie i katalog `dist` w Vite](https://vite.dev/guide/static-deploy), [obraz Nginx bez uprawnień roota](https://github.com/nginx/docker-nginx-unprivileged).
+
+## Sprawdzenie działania backendu
 
 Poczekaj, aż w logach pojawi się komunikat `Started FoundlyBackendApplication`, a następnie otwórz w przeglądarce:
 
@@ -135,7 +181,58 @@ Przy uruchomieniu lokalnym konsola H2 jest dostępna pod adresem http://localhos
 
 Domyślne ustawienia H2 ograniczają dostęp do konsoli z innych hostów, co może blokować korzystanie z niej przez opublikowany port kontenera. Do sprawdzenia działania kontenera używaj endpointu testowego.
 
-Sterownik PostgreSQL jest dodany do projektu, ale środowisko z PostgreSQL nie jest jeszcze skonfigurowane.
+### PostgreSQL w Docker Compose (szablon)
+
+`docker-compose.yml` zawiera usługę `db` z obrazem `postgres:18-alpine`, trwałym wolumenem `postgres_data` i healthcheckiem `pg_isready`. Baza jest udostępniana wyłącznie na `127.0.0.1` komputera. Backend nadal domyślnie korzysta z H2; samo uruchomienie Compose nie przełącza jego konfiguracji.
+
+W głównym katalogu repozytorium skopiuj konfigurację:
+
+```bash
+cp .env.example .env
+```
+
+W PowerShell użyj `Copy-Item .env.example .env`. Ustaw własne `POSTGRES_PASSWORD` w `.env`. Plik `.env` jest pomijany przez Git; `.env.example` pozostaje wspólnym szablonem. Compose automatycznie odczytuje `.env`. Bez ustawionego, niepustego hasła zgłosi błąd konfiguracji.
+
+Sprawdź konfigurację i uruchom bazę:
+
+```bash
+docker compose config --quiet
+docker compose up -d --wait db
+docker compose ps
+docker compose logs -f db
+```
+
+`--wait` czeka na gotowość bazy potwierdzoną healthcheckiem. `Ctrl+C` kończy podgląd logów, pozostawiając bazę uruchomioną. Wymagany jest Docker Compose v2 z obsługą `--wait`.
+
+Domyślne parametry połączenia z komputera (np. z IntelliJ lub DBeaver):
+
+| Parametr | Wartość |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `5432` lub wartość `POSTGRES_PORT` z `.env` |
+| Baza | `foundly` lub wartość `POSTGRES_DB` |
+| Użytkownik | `foundly` lub wartość `POSTGRES_USER` |
+| Hasło | wartość `POSTGRES_PASSWORD` z `.env` |
+
+Zapytanie kontrolne bez instalowania lokalnego klienta PostgreSQL:
+
+```bash
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;"'
+```
+
+Zatrzymanie i usunięcie kontenera z zachowaniem danych:
+
+```bash
+docker compose down
+```
+
+Wolumen zachowuje dane po ponownym utworzeniu kontenera. **`docker compose down -v` usuwa także wolumen i całą zawartość bazy.** Zmienne `POSTGRES_DB`, `POSTGRES_USER` i `POSTGRES_PASSWORD` inicjalizują bazę tylko przy pustym wolumenie; ich zmiana w `.env` nie aktualizuje istniejącej bazy ani hasła użytkownika.
+
+Przy przyszłej integracji backend uruchamiany na komputerze powinien otrzymać adres `jdbc:postgresql://127.0.0.1:5432/foundly` (z uwzględnieniem ustawień `.env`), a backend w tej samej sieci Compose — `jdbc:postgresql://db:5432/foundly`. Służą do tego zmienne Spring Boot `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` i `SPRING_DATASOURCE_PASSWORD`. Spring Boot uruchamiany lokalnie nie odczytuje automatycznie pliku `.env` Compose; zmienne trzeba przekazać przez terminal lub konfigurację uruchomienia IDE.
+
+Przed podłączeniem backendu należy też zastąpić domyślne `spring.jpa.hibernate.ddl-auto=create-drop` ustawieniem odpowiadającym przyjętemu zarządzaniu schematem, aby backend nie usuwał tabel przy zatrzymaniu. Przy dodawaniu usługi backendu do Compose można użyć `depends_on: db: condition: service_healthy` w postaci zagnieżdżonego YAML, aby czekała na gotowość bazy.
+
+Źródła: [oficjalny obraz PostgreSQL i inicjalizacja danych](https://hub.docker.com/_/postgres), [healthcheck i kolejność startu w Compose](https://docs.docker.com/compose/how-tos/startup-order/).
 
 ## Typowe problemy
 
