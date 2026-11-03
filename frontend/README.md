@@ -5,21 +5,45 @@ Pierwszy etap frontendu: komponent `ReportCard` z własnymi stylami oraz mały p
 Z tego katalogu wykonaj:
 
 ```bash
+cd frontend
 npm ci
 npm run dev
 ```
 
-Otwórz adres wypisany w terminalu. Kompilacja wraz ze sprawdzeniem typów:
+Otwórz adres wypisany przez Vite, zwykle `http://localhost:5173`. Serwer zatrzymasz przez `Ctrl+C`. Przy kolejnych uruchomieniach, jeśli zależności są już zainstalowane i lockfile się nie zmienił, wystarczy `npm run dev` z katalogu `frontend`.
 
-```bash
-npm run build
+## Sprawdzenie i kompilacja
+
+Wszystkie poniższe polecenia wykonuj w katalogu `frontend`.
+
+| Polecenie | Działanie |
+| --- | --- |
+| `npm run typecheck` | Sprawdza typy TypeScript bez generowania plików. |
+| `npm run build` | Sprawdza typy i tworzy wersję produkcyjną w `dist/`. |
+| `npm run preview` | Uruchamia lokalny podgląd wcześniej zbudowanej wersji. |
+
+Przy ręcznej weryfikacji sprawdź etykiety oraz statusy trzech kart, aktualizację komunikatu po kliknięciu „Wybierz” i układ na szerokim oraz wąskim ekranie. Projekt nie zawiera obecnie automatycznego zestawu testów komponentów.
+
+## Struktura źródeł
+
+```text
+src/
+├── components/
+│   └── ReportCard/
+│       ├── ReportCard.tsx   # Komponent karty ogłoszenia
+│       └── ReportCard.css   # Style karty
+├── demo/
+│   └── reports.ts           # Trzy przykładowe ogłoszenia
+├── types/
+│   └── report.ts            # Typ danych Report
+├── App.tsx                 # Strona demonstracyjna i obsługa wyboru karty
+├── index.css               # Układ i style strony demonstracyjnej
+└── main.tsx                # Punkt wejścia aplikacji React
 ```
 
-Samo sprawdzenie typów: `npm run typecheck`.
+## Użycie komponentu
 
-Komponent znajduje się w `src/components/ReportCard/ReportCard.tsx`, a jego style w sąsiednim `ReportCard.css`. Typ danych `Report` znajduje się w `src/types/report.ts` i zachowuje strukturę modelu z prototypu aplikacji.
-
-Przykład użycia wewnątrz aplikacji React:
+Przykład w pliku umieszczonym bezpośrednio w `src/`:
 
 ```tsx
 import { ReportCard } from './components/ReportCard/ReportCard';
@@ -41,14 +65,28 @@ export function Example() {
 }
 ```
 
-Właściwość `report` jest wymagana. Opcjonalna funkcja `onSelect` otrzymuje wybrane ogłoszenie i włącza przycisk „Wybierz”:
+| Właściwość | Typ | Wymagana | Znaczenie |
+| --- | --- | --- | --- |
+| `report` | `Report` | Tak | Dane wyświetlanego ogłoszenia. |
+| `onSelect` | `(report: Report) => void` | Nie | Funkcja wywoływana po wyborze karty. Jej przekazanie wyświetla przycisk „Wybierz”. |
+
+Przykład obsługi wyboru:
 
 ```tsx
-<ReportCard report={report} onSelect={(selected) => console.log(selected.id)} />
+<ReportCard
+  report={report}
+  onSelect={(selectedReport) => console.log(selectedReport.id)}
+/>
 ```
 
-Ikona i kolor ilustracji zależą od kategorii. Nieznana kategoria otrzymuje ikonę paczki. Typ `lost` wyświetla etykietę „Zgubiono”, a `found` — „Znaleziono”. `recovered: true` zmienia status na „Zakończone”. Data jest wyświetlana po polsku; brak poprawnej daty pokazuje „Brak daty”.
+`Report` zawiera pola `id`, `title`, `type`, `category`, `location`, `date`, `color` i `description` oraz opcjonalne `owner` i `recovered`. Data zdarzenia ma format `YYYY-MM-DD`; na karcie jest formatowana po polsku. Niepoprawna data wyświetla tekst „Brak daty”.
 
-Komponent korzysta z własnego CSS i nie wymaga Tailwinda, React Routera ani konfiguracji Figmy. Plik `App.tsx`, katalog `demo/` i `src/index.css` służą wyłącznie do prezentacji komponentu; przy rozbudowie aplikacji można zastąpić ten podgląd właściwym widokiem.
+Typ `lost` oznacza zgubienie, a `found` — znalezienie przedmiotu. `recovered: true` wyświetla status „Zakończone”; w pozostałych przypadkach karta pokazuje „Aktywne ogłoszenie”.
 
-W tym etapie dostępne są karty i obsługa ich wyboru. Formularze, wyszukiwarka, logowanie, routing, widok szczegółów i integracja z API pozostają kolejnymi zadaniami. Przykładowe dane znajdują się lokalnie w `src/demo/reports.ts`.
+Obsługiwane kategorie to: Elektronika, Klucze, Portfele i dokumenty, Torby i plecaki, Biżuteria oraz Inne. Dla nieznanej kategorii używana jest ikona paczki. Pola `color` i `owner` zachowano w modelu na potrzeby rozbudowy; nie zmieniają obecnie wyglądu karty.
+
+## Aktualne ograniczenia i dalsza praca
+
+Podgląd korzysta wyłącznie z lokalnych danych demonstracyjnych. Wybranie karty aktualizuje komunikat na stronie; nie otwiera jeszcze widoku szczegółów ani nie zapisuje wyboru po odświeżeniu.
+
+Kolejne etapy obejmują nagłówek i nawigację, listę ogłoszeń z wyszukiwaniem i filtrami, formularze oraz widok szczegółów. Logowanie, zapis danych i integracja z backendem wymagają osobnej implementacji. Dane przykładowe nie potwierdzają działania tych funkcji.
