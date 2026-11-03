@@ -93,6 +93,8 @@ Kolejne etapy obejmują nagłówek i nawigację, listę ogłoszeń z wyszukiwani
 
 ## Logowanie i profil
 
+Przycisk **Utwórz konto** obok **Zaloguj się** otwiera formularz rejestracji Keycloak przez `keycloak.register()`. Formularze mają [motyw Foundly](../docker/keycloak/themes/foundly/README.md), domyślnie po polsku, z możliwością zmiany na angielski. Po utworzeniu konta użytkownik wraca na stronę aplikacji; synchronizacja profilu działa tak samo jak po logowaniu. Motyw i rejestrację dla nowego lub istniejącego realmu ustawia `docker compose up -d keycloak-init` z głównego katalogu projektu.
+
 Uruchom backend i Keycloak zgodnie z [instrukcją backendu](../foundly-backend/README.md), a frontend przez `npm run dev`. Otwórz `http://localhost:5173` i wybierz **Zaloguj się**. Konto demonstracyjne i jego hasło są opisane w instrukcji backendu; istniejące konto zachowuje dotychczasowe hasło.
 
 Adapter `keycloak-js` używa Authorization Code z PKCE S256 i zakresów `openid profile email`. Po zalogowaniu lub przywróceniu sesji frontend wywołuje `PUT /api/me` bez body; ekran konta pokazuje nazwę i e-mail dopiero po poprawnej odpowiedzi. Synchronizacja jest ponawiana po odświeżeniu tokenu. Przy błędzie API można wybrać **Spróbuj ponownie**. Wylogowanie usuwa lokalny stan profilu, a spóźniona odpowiedź nie przywraca sesji. Tokeny są trzymane w pamięci adaptera, bez zapisywania w localStorage.

@@ -33,7 +33,12 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
-    command: ["start-dev", "--import-realm"]
+    command:
+      - start-dev
+      - --import-realm
+      - --spi-theme--static-max-age=-1
+      - --spi-theme--cache-themes=false
+      - --spi-theme--cache-templates=false
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
@@ -46,6 +51,7 @@ services:
       - "127.0.0.1:8081:8080"
     volumes:
       - ./docker/keycloak/foundly-realm.json:/opt/keycloak/data/import/foundly-realm.json:ro
+      - ./docker/keycloak/themes/foundly:/opt/keycloak/themes/foundly:ro
     depends_on:
       keycloak-db:
         condition: service_healthy

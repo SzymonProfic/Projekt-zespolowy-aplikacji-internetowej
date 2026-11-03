@@ -87,5 +87,12 @@
         }
       ]
     }
-  ]
+  ],
+  "loginTheme": "foundly",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "pl",
+    "en"
+  ],
+  "defaultLocale": "pl"
 }

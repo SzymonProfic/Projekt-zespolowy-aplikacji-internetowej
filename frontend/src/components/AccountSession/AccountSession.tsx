@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { getAuthSnapshot, initializeAuth, login, logout, retryProfile, subscribeAuth } from '../../services/auth';
+import { getAuthSnapshot, initializeAuth, login, logout, register, retryProfile, subscribeAuth } from '../../services/auth';
 import './AccountSession.css';
 
 export function AccountSession() {
@@ -28,7 +28,10 @@ export function AccountSession() {
         {session.status === 'error' && <button type="button" onClick={() => void retryProfile()}>Spróbuj ponownie</button>}
         {!pending && (session.signedIn
           ? <button type="button" onClick={() => void logout()}>Wyloguj się</button>
-          : session.status === 'anonymous' && <button type="button" onClick={() => void login()}>Zaloguj się</button>)}
+          : session.status === 'anonymous' && <>
+              <button type="button" className="account-session__secondary" onClick={() => void login()}>Zaloguj się</button>
+              <button type="button" onClick={() => void register()}>Utwórz konto</button>
+            </>)}
       </div>
     </section>
   );

@@ -1,0 +1,203 @@
+:root {
+  color-scheme: light;
+  --foundly-ink: #253c39;
+  --foundly-muted: #657260;
+  --foundly-green: #177e70;
+  --foundly-green-hover: #116656;
+  --foundly-border: #e5e9e0;
+  --pf-v5-global--FontFamily--sans-serif: 'Avenir Next', 'Segoe UI', sans-serif;
+  --pf-v5-global--FontFamily--heading--sans-serif: 'Avenir Next', 'Segoe UI', sans-serif;
+  --pf-v5-global--primary-color--100: var(--foundly-green);
+  --pf-v5-global--primary-color--200: var(--foundly-green-hover);
+  --pf-v5-global--link--Color: var(--foundly-green);
+  --pf-v5-global--link--Color--hover: var(--foundly-green-hover);
+  --pf-v5-global--Color--100: var(--foundly-ink);
+  --pf-v5-global--Color--200: var(--foundly-muted);
+}
+
+html.login-pf,
+.login-pf body {
+  min-width: 280px;
+  min-height: 100%;
+  margin: 0;
+  color: var(--foundly-ink);
+  background: #f8f9f5;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.login-pf body {
+  background-image: radial-gradient(ellipse at 85% 8%, #eaf0e8 0, transparent 48%),
+                    radial-gradient(ellipse at 5% 90%, #f3f0e7 0, transparent 40%);
+  background-attachment: fixed;
+}
+
+.pf-v5-c-login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 42px 24px;
+}
+
+.pf-v5-c-login__container {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 460px;
+  margin: auto;
+  padding: 0;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 26px;
+}
+
+#kc-header { margin: 0; padding: 0; }
+
+#kc-header-wrapper {
+  margin: 0;
+  padding: 0;
+  color: var(--foundly-ink) !important;
+  font-size: 44px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -2.5px;
+  text-transform: none;
+  text-align: center;
+}
+
+.foundly-dot { color: var(--foundly-green); }
+
+.pf-v5-c-login__main {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--foundly-border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgb(37 60 57 / 6%);
+}
+
+.pf-v5-c-login__main-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30px 32px 22px;
+  border-top: 0;
+  column-gap: 16px;
+}
+
+#kc-page-title {
+  color: var(--foundly-ink);
+  font-family: inherit;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.9px;
+  overflow-wrap: anywhere;
+}
+
+.pf-v5-c-login__main-body { padding: 0 32px 28px; }
+.pf-v5-c-login__main-footer { padding: 0; }
+.pf-v5-c-form { --pf-v5-c-form--Gap: 20px; }
+.pf-v5-c-form__label-text { font-size: 13px; font-weight: 600; }
+.pf-v5-c-form__label-required { color: var(--foundly-muted); }
+
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--BorderColor: #dce4db;
+  --pf-v5-c-form-control--BorderBottomColor: #dce4db;
+  --pf-v5-c-form-control--hover--BorderBottomColor: var(--foundly-green);
+  --pf-v5-c-form-control--focus--BorderBottomColor: var(--foundly-green);
+  --pf-v5-c-form-control--after--BorderBottomWidth: 1px;
+  border-radius: 8px;
+  transition: box-shadow 140ms ease;
+}
+
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after { border-radius: inherit; }
+.pf-v5-c-form-control:focus-within { outline: 2px solid var(--foundly-green); outline-offset: 2px; box-shadow: 0 0 0 4px rgb(23 126 112 / 12%); }
+.pf-v5-c-form-control > :is(input, select, textarea):focus-visible { outline: none; }
+.pf-v5-c-form-control:not(.pf-m-error):focus-within::after { border-color: var(--foundly-green); }
+.pf-v5-c-form-control > :is(input, select, textarea) { min-height: 46px; font: inherit; font-size: 14px; }
+.pf-v5-c-form__helper-text { font-size: 12px; }
+.pf-v5-c-form__label,
+.pf-v5-c-check__label { color: var(--foundly-ink); }
+input[type='checkbox'] { accent-color: var(--foundly-green); }
+
+.pf-v5-c-button { border-radius: 8px; font-family: inherit; font-size: 14px; }
+.pf-v5-c-button::after { border-radius: inherit; }
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--foundly-green);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--foundly-green-hover);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--foundly-green-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--foundly-green-hover);
+  min-height: 46px;
+  padding: 12px 18px;
+  font-weight: 650;
+}
+
+.pf-v5-c-button.pf-m-secondary {
+  --pf-v5-c-button--m-secondary--Color: var(--foundly-green);
+  --pf-v5-c-button--m-secondary--after--BorderColor: #cbdccf;
+}
+
+.pf-v5-c-button.pf-m-control { color: var(--foundly-muted); background: transparent; }
+a { color: var(--foundly-green); font-size: 13px; }
+a:hover { color: var(--foundly-green-hover); }
+:is(a, button, input[type='submit']):focus-visible { outline: 3px solid #69b4a2; outline-offset: 3px; }
+
+#kc-info {
+  margin-block-start: 24px;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--foundly-border);
+  background: transparent;
+}
+
+#kc-info-wrapper { padding: 0; }
+#kc-registration > span { display: grid; gap: 10px; text-align: center; font-size: 13px; color: var(--foundly-muted); }
+#kc-registration a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #cbdccf;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--foundly-green);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+#kc-registration a:hover { background: #eff5ed; }
+
+.foundly-footer {
+  margin: 0;
+  padding: 22px 28px;
+  border-top: 1px solid var(--foundly-border);
+  background: #f5f7f1;
+  text-align: center;
+}
+.foundly-footer strong { display: block; color: #52664c; font-size: 12px; font-weight: 650; }
+.foundly-footer p { margin: 5px 0 0; color: var(--foundly-muted); font-size: 12px; line-height: 1.6; }
+
+.pf-v5-c-alert { border-radius: 8px; font-size: 13px; }
+#login-select-toggle { min-height: 34px; font-size: 12px; }
+.pf-v5-c-login__main-header-utilities { align-self: center; min-width: 94px; margin-inline-start: auto; }
+
+@media (max-width: 520px) {
+  .pf-v5-c-login { padding: 24px 16px; }
+  .pf-v5-c-login__container { row-gap: 20px; }
+  #kc-header-wrapper { font-size: 36px; }
+  .pf-v5-c-login__main-header { padding: 24px 22px 20px; }
+  .pf-v5-c-login__main-body { padding: 0 22px 24px; }
+  #kc-page-title { font-size: 24px; }
+  .foundly-footer { padding: 20px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-v5-c-form-control { transition: none; }
+}

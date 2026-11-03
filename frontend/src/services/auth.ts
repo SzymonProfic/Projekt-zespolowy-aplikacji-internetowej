@@ -122,6 +122,16 @@ export async function login() {
   }
 }
 
+export async function register() {
+  await initializeAuth();
+  if (!initialized || !client) return;
+  try {
+    await client.register({ redirectUri: window.location.origin + '/', scope: 'openid profile email' });
+  } catch {
+    publish({ status: 'error', error: 'Nie udało się otworzyć rejestracji. Spróbuj ponownie.' });
+  }
+}
+
 export async function logout() {
   try {
     await client?.logout({ redirectUri: window.location.origin + '/' });

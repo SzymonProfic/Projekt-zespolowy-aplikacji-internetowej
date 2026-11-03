@@ -64,6 +64,20 @@ docker compose run --rm keycloak-init
 
 Dotychczasowe `python3 docker/keycloak/seed-users.py` pozostaje skrótem do tego polecenia. Jeśli wskazujesz konkretne usługi podczas `up`, użyj `docker compose up -d db keycloak-init` — uruchomienie samego `keycloak` nie uruchamia jego zależnej usługi inicjalizującej.
 
+## Wygląd logowania i rejestracja
+
+Realm `foundly` korzysta z motywu [Foundly](../docker/keycloak/themes/foundly/README.md): jasnego tła, zielonych przycisków i typografii spójnej z frontendem. Motyw obejmuje logowanie, rejestrację i pozostałe formularze logowania Keycloak. Domyślny język to polski; można przełączyć go na angielski.
+
+Po pobraniu zmian wykonaj z głównego katalogu:
+
+```bash
+docker compose up -d keycloak-init
+```
+
+Compose montuje pliki motywu, a `keycloak-init` ustawia motyw, języki i włącza rejestrację także w istniejącym realmie. Konta i hasła pozostają zachowane. Nie trzeba usuwać wolumenów. Po zakończeniu inicjalizacji odśwież formularz logowania.
+
+W aplikacji przycisk **Utwórz konto** otwiera bezpośrednio rejestrację Keycloak. Ten sam przycisk jest dostępny na formularzu logowania, również podczas autoryzacji ze Swaggera. Po rejestracji przez frontend użytkownik wraca do aplikacji, która synchronizuje profil przez `PUT /api/me`.
+
 ## Dokumentacja interaktywna
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`.
