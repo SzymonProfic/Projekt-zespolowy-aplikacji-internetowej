@@ -1,7 +1,8 @@
-# Szablon lokalnej bazy; backend i frontend będą dodane przy integracji.
+# Środowisko lokalne: PostGIS + Keycloak. Backend kontenerowy: --profile app.
 services:
   db:
-    image: postgres:18-alpine
+    image: postgis/postgis:18-3.6
+    platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-foundly}
       POSTGRES_USER: ${POSTGRES_USER:-foundly}
@@ -9,14 +10,79 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      # PostgreSQL 18+ przechowuje dane w podkatalogu wersji.
-      - postgres_data:/var/lib/postgresql
+      - postgis_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+
+  keycloak-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_local_only}
+    volumes:
+      - keycloak_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_local_only}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_local_only}
+      KC_HOSTNAME: http://localhost:8081
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./docker/keycloak/foundly-realm.json:/opt/keycloak/data/import/foundly-realm.json:ro
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+
+  keycloak-init:
+    image: python:3.13-alpine
+    command: ["python", "-B", "/seed/init-users.py"]
+    restart: "no"
+    environment:
+      KEYCLOAK_BASE_URL: http://keycloak:8080
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_local_only}
+    volumes:
+      - ./docker/keycloak:/seed:ro
+    depends_on:
+      keycloak:
+        condition: service_started
+
+  backend:
+    profiles: ["app"]
+    build: ./foundly-backend
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-foundly}
+      POSTGRES_USER: ${POSTGRES_USER:-foundly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD w pliku .env}
+      KEYCLOAK_ISSUER: http://localhost:8081/realms/foundly
+      KEYCLOAK_JWKS: http://keycloak:8080/realms/foundly/protocol/openid-connect/certs
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      keycloak-init:
+        condition: service_completed_successfully
 
 volumes:
-  postgres_data:
+  # Nowy wolumen PostGIS; poprzedni postgres_data pozostaje na dysku bez zmian.
+  postgis_data:
+  keycloak_data:
