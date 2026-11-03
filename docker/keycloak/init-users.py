@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision missing development users through Keycloak's Admin REST API."""
+"""Synchronize the development login theme and provision missing Keycloak users."""
 
 import json
 import os
@@ -11,14 +11,14 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
-def request(url, *, data=None, token=None, form=False):
+def request(url, *, data=None, token=None, form=False, method=None):
     headers = {}
     if token:
         headers["Authorization"] = "Bearer " + token
     if data is not None:
         headers["Content-Type"] = "application/x-www-form-urlencoded" if form else "application/json"
         data = (urlencode(data) if form else json.dumps(data)).encode("utf-8")
-    with urlopen(Request(url, data=data, headers=headers), timeout=5) as response:
+    with urlopen(Request(url, data=data, headers=headers, method=method), timeout=5) as response:
         body = response.read()
         return json.loads(body) if body else None
 
@@ -51,6 +51,14 @@ def main():
         "username": os.environ["KC_BOOTSTRAP_ADMIN_USERNAME"],
         "password": os.environ["KC_BOOTSTRAP_ADMIN_PASSWORD"],
     })["access_token"]
+    realm_url = base_url + "/admin/realms/" + realm
+    current = request(realm_url, token=token)
+    appearance = {key: definition[key] for key in (
+        "loginTheme", "internationalizationEnabled", "supportedLocales", "defaultLocale", "registrationAllowed"
+    ) if key in definition}
+    if any(current.get(key) != value for key, value in appearance.items()):
+        request(realm_url, data=appearance, token=token, method="PUT")
+        print("Foundly login theme, locales and registration settings synchronized.", flush=True)
     users_url = base_url + "/admin/realms/" + realm + "/users"
     for user in definition.get("users", []):
         username = user["username"]
