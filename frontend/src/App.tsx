@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AccountSession } from './components/AccountSession/AccountSession';
 import { ReportCard } from './components/ReportCard/ReportCard';
 import { demoReports } from './demo/reports';
 import type { Report } from './types/report';
@@ -9,6 +10,7 @@ export default function App() {
   return (
     <main className="card-preview">
       <p className="card-preview__brand">foundly<span>.</span></p>
+      <AccountSession />
       <header className="card-preview__heading">
         <p className="card-preview__eyebrow">PRZYKŁADOWE OGŁOSZENIA</p>
         <h1>Każda rzecz ma swoją historię.</h1>

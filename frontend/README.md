@@ -1,6 +1,6 @@
-**Foundly — karta ogłoszenia**
+**Foundly — karty ogłoszeń i konto użytkownika**
 
-Pierwszy etap frontendu: komponent `ReportCard` z własnymi stylami oraz mały podgląd trzech przykładowych kart. Wykorzystuje React, TypeScript, Vite i ikony Lucide. Wymagany Node.js 22.12+ z gałęzi 22 lub Node.js 24+.
+Frontend zawiera komponent `ReportCard`, podgląd trzech przykładowych kart oraz logowanie Keycloak z synchronizacją własnego profilu przez REST API. Wykorzystuje React, TypeScript, Vite i ikony Lucide. Wymagany Node.js 22.12+ z gałęzi 22 lub Node.js 24+.
 
 Z tego katalogu wykonaj:
 
@@ -89,4 +89,16 @@ Obsługiwane kategorie to: Elektronika, Klucze, Portfele i dokumenty, Torby i pl
 
 Podgląd korzysta wyłącznie z lokalnych danych demonstracyjnych. Wybranie karty aktualizuje komunikat na stronie; nie otwiera jeszcze widoku szczegółów ani nie zapisuje wyboru po odświeżeniu.
 
-Kolejne etapy obejmują nagłówek i nawigację, listę ogłoszeń z wyszukiwaniem i filtrami, formularze oraz widok szczegółów. Logowanie, zapis danych i integracja z backendem wymagają osobnej implementacji. Dane przykładowe nie potwierdzają działania tych funkcji.
+Kolejne etapy obejmują nagłówek i nawigację, listę ogłoszeń z wyszukiwaniem i filtrami, formularze oraz widok szczegółów. Logowanie i profil korzystają już z Keycloak oraz backendu. Pobieranie i zapis zgłoszeń z interfejsu wymagają osobnej integracji. Dane przykładowe nie potwierdzają działania tych funkcji.
+
+## Logowanie i profil
+
+Uruchom backend i Keycloak zgodnie z [instrukcją backendu](../foundly-backend/README.md), a frontend przez `npm run dev`. Otwórz `http://localhost:5173` i wybierz **Zaloguj się**. Konto demonstracyjne i jego hasło są opisane w instrukcji backendu; istniejące konto zachowuje dotychczasowe hasło.
+
+Adapter `keycloak-js` używa Authorization Code z PKCE S256 i zakresów `openid profile email`. Po zalogowaniu lub przywróceniu sesji frontend wywołuje `PUT /api/me` bez body; ekran konta pokazuje nazwę i e-mail dopiero po poprawnej odpowiedzi. Synchronizacja jest ponawiana po odświeżeniu tokenu. Przy błędzie API można wybrać **Spróbuj ponownie**. Wylogowanie usuwa lokalny stan profilu, a spóźniona odpowiedź nie przywraca sesji. Tokeny są trzymane w pamięci adaptera, bez zapisywania w localStorage.
+
+Domyślne adresy to backend `http://localhost:8080` i Keycloak `http://localhost:8081`, realm `foundly`. Można je zmienić w lokalnym pliku `.env.local` na podstawie [.env.example](.env.example): `VITE_API_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`. Przy zmianie origin frontendu trzeba również zmienić callback i Web Origins klienta w Keycloak oraz CORS backendu. `npm run preview` używa innego portu, którego domyślna konfiguracja logowania nie obejmuje.
+
+Implementacja sesji jest w `src/services/auth.ts`, a widok konta w `src/components/AccountSession/`. Karty nadal używają lokalnych danych demonstracyjnych.
+
+Automatyczne testy synchronizacji sesji zostaną dodane w osobnym sprincie.

@@ -6,7 +6,7 @@ Foundly ma połączyć osoby, które zgubiły przedmiot, z osobami, które go zn
 
 Projekt powstaje w ramach przedmiotu **„Projekt zespołowy aplikacji internetowej”** na **Politechnice Częstochowskiej, w Katedrze Informatyki**, w roku akademickim **2026/2027**. Realizuje go trzyosobowy zespół, którego celem jest przygotowanie funkcjonalnego MVP.
 
-> **Status: przygotowanie projektu.** Repozytorium zawiera szkielet backendu Spring Boot z konfiguracją Maven oraz katalogi frontendu i dokumentacji. Poniższy opis przedstawia planowany zakres systemu. Funkcje aplikacji i konfiguracja środowiska będą dodawane wraz z implementacją.
+> **Status: wstępne REST API i demonstracja kart frontendu.** Backend zawiera zgłoszenia, kategorie, profil Keycloak, wyszukiwanie PostGIS. Automatyczne dopasowywanie jest odłożone do kolejnego sprintu. Aktualny kontrakt, konfiguracja i uruchomienie: [README backendu](foundly-backend/README.md). Frontend ma logowanie Keycloak i synchronizację profilu przez API; karty nadal korzystają z danych demonstracyjnych. Poniższy plan projektu oraz starsze instrukcje wdrożenia wymagają dalszej aktualizacji; backend nie korzysta już z H2.
 
 ## Spis treści
 
@@ -54,7 +54,6 @@ Poniższa lista określa planowany zakres pierwszej wersji aplikacji. Niezaznacz
 - [ ] Wyszukiwanie i filtrowanie zgłoszeń.
 - [ ] Widok „Moje zgłoszenia”.
 - [ ] Zarządzanie statusem zgłoszenia, w tym oznaczanie przedmiotu jako odzyskanego.
-- [ ] Podstawowy mechanizm dopasowywania zgłoszeń.
 
 ### Integracja i dostarczanie
 
@@ -66,6 +65,8 @@ Poniższa lista określa planowany zakres pierwszej wersji aplikacji. Niezaznacz
 ## Dalszy rozwój
 
 Po ukończeniu MVP zespół rozważy dodanie:
+
+- podstawowego mechanizmu dopasowywania zgłoszeń (kolejny sprint);
 
 - zdjęć przedmiotów;
 - powiadomień o potencjalnych dopasowaniach;
@@ -107,6 +108,8 @@ Docelowo komponenty systemu będą uruchamiane w kontenerach Docker. Szczegóły
 | Współpraca i kontrola wersji | Git, GitHub |
 
 ## Dopasowywanie zgłoszeń
+
+**Zakres kolejnego sprintu.** Bieżące API nie zawiera mechanizmu ani endpointów dopasowywania. Poniższy opis przedstawia plany rozwoju.
 
 Mechanizm dopasowywania ma wskazywać zgłoszenia znalezionych przedmiotów, które mogą odpowiadać zgłoszeniom zagubienia. Pierwsza wersja będzie oparta na prostych, możliwych do wyjaśnienia kryteriach.
 
@@ -153,8 +156,7 @@ Przygotowany podział katalogów:
 │   │   │   │   ├── controllers/   # Obsługa żądań API
 │   │   │   │   ├── services/      # Logika biznesowa
 │   │   │   │   ├── repositories/  # Dostęp do danych
-│   │   │   │   ├── models/        # Modele danych
-│   │   │   │   └── matching/      # Dopasowywanie zgłoszeń
+│   │   │   │   └── models/        # Modele danych
 │   │   │   └── resources/
 │   │   │       └── application.properties
 │   │   └── test/java/pl/szymonprofic/foundlybackend/
@@ -170,7 +172,7 @@ Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozyt
 
 ### Moduł backendu i import w IntelliJ IDEA
 
-Backend jest jednym modułem Maven, opisanym przez `foundly-backend/pom.xml`. Katalogi `controllers`, `services`, `repositories`, `models` i `matching` są pakietami Javy wewnątrz tego modułu. Klasy należy umieszczać pod pakietem `pl.szymonprofic.foundlybackend`, aby znajdowały się w obszarze skanowania klasy startowej Spring Boot.
+Backend jest jednym modułem Maven, opisanym przez `foundly-backend/pom.xml`. Katalogi `controllers`, `services`, `repositories` i `models` są pakietami Javy wewnątrz tego modułu. Klasy należy umieszczać pod pakietem `pl.szymonprofic.foundlybackend`, aby znajdowały się w obszarze skanowania klasy startowej Spring Boot.
 
 Główny katalog repozytorium jest zwykłym folderem projektu, bez własnego modułu IntelliJ. Jedynym modułem jest `foundly-backend`. Frontend jest osobną aplikacją React i nie wymaga modułu Javy. Na tym etapie nie są potrzebne nadrzędny `pom.xml` ani plik `module-info.java`.
 
@@ -255,8 +257,6 @@ Backend będzie udostępniał REST API. Poniższe endpointy są propozycją kont
 | `POST` | `/api/reports` | Utworzenie zgłoszenia |
 | `PUT` | `/api/reports/{id}` | Aktualizacja własnego zgłoszenia |
 | `DELETE` | `/api/reports/{id}` | Usunięcie własnego zgłoszenia |
-| `GET` | `/api/matches` | Pobranie potencjalnych dopasowań |
-| `GET` | `/api/matches/{id}` | Pobranie szczegółów dopasowania |
 
 Przebieg logowania i endpointy związane z uwierzytelnianiem zostaną ustalone po wyborze jego dostawcy. Schematy danych, parametry zapytań, kody odpowiedzi i zasady dostępu będą opisane w specyfikacji OpenAPI.
 

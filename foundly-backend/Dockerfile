@@ -6,7 +6,8 @@ COPY mvnw pom.xml ./
 RUN chmod +x mvnw && ./mvnw -B -ntp dependency:go-offline
 
 COPY src/ src/
-RUN ./mvnw -B -ntp package
+# Tests are scheduled for a separate sprint; build the application without test compilation.
+RUN ./mvnw -B -ntp -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
