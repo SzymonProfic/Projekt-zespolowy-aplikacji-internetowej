@@ -1,0 +1,73 @@
+body {
+  min-width: 280px;
+  margin: 0;
+  background: #f8f9f5;
+  color: #253c39;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card-preview {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 32px 64px;
+}
+
+.card-preview__brand {
+  margin: 0 0 58px;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -1.5px;
+}
+
+.card-preview__brand span { color: #177e70; }
+.card-preview__heading { margin-bottom: 28px; }
+
+.card-preview__eyebrow {
+  margin: 0 0 12px;
+  color: #5d7553;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 1.8px;
+}
+
+.card-preview__heading h1 {
+  margin: 0 0 14px;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.2;
+}
+
+.card-preview__heading > p:last-child {
+  margin: 0;
+  color: #67775e;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.card-preview__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.card-preview__selection {
+  min-height: 24px;
+  margin: 26px 0 0;
+  color: #52664c;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .card-preview__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .card-preview { padding: 24px 20px 40px; }
+  .card-preview__brand { margin-bottom: 38px; }
+  .card-preview__grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+}
