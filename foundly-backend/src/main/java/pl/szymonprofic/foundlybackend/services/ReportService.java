@@ -14,6 +14,7 @@ import pl.szymonprofic.foundlybackend.dto.*;
 import pl.szymonprofic.foundlybackend.models.*;
 import pl.szymonprofic.foundlybackend.models.enums.*;
 import pl.szymonprofic.foundlybackend.repositories.*;
+
 import java.time.*;
 import java.util.*;
 
@@ -39,10 +40,12 @@ public class ReportService {
     }
 
     @Transactional(readOnly = true)
-    public ReportResponse get(UUID id, Jwt jwt) { return response(find(id), jwt, true); }
+    public ReportResponse get(UUID id, Jwt jwt) {
+        return response(find(id), jwt, true);
+    }
 
     @Transactional
-    public ReportResponse create(ReportRequests.Create request, AppUser author, Jwt jwt) {
+    public ReportResponse create(CreateReportRequest request, AppUser author, Jwt jwt) {
         var report = new Report(author, ReportType.valueOf(request.type().toUpperCase(Locale.ROOT)), clock.instant());
         apply(report, request.content());
         Report persisted = reports.saveAndFlush(report);
@@ -50,17 +53,18 @@ public class ReportService {
     }
 
     @Transactional
-    public ReportResponse update(UUID id, ReportRequests.Update request, Jwt jwt) {
+    public ReportResponse update(UUID id, UpdateReportRequest request, Jwt jwt) {
         Report report = owned(id, jwt);
         checkVersion(report, request.version());
-        if (report.getStatus() != ReportStatus.ACTIVE) throw error(HttpStatus.CONFLICT, "Zakończonego zgłoszenia nie można edytować");
+        if (report.getStatus() != ReportStatus.ACTIVE)
+            throw error(HttpStatus.CONFLICT, "Zakończonego zgłoszenia nie można edytować");
         apply(report, request.content());
         reports.flush();
         return response(report, jwt, true);
     }
 
     @Transactional
-    public ReportResponse resolve(UUID id, ReportRequests.Resolve request, Jwt jwt) {
+    public ReportResponse resolve(UUID id, ResolveReportRequest request, Jwt jwt) {
         Report report = owned(id, jwt);
         // A repeated resolution is safe even when the caller still holds the pre-resolution version.
         if (report.getStatus() == ReportStatus.RESOLVED) return response(report, jwt, true);
@@ -98,13 +102,14 @@ public class ReportService {
 
     private Report owned(UUID id, Jwt jwt) {
         Report report = find(id);
-        if (!users.isAuthor(report.getAuthor(), jwt)) throw error(HttpStatus.FORBIDDEN, "Zgłoszenie należy do innego użytkownika");
+        if (!users.isAuthor(report.getAuthor(), jwt))
+            throw error(HttpStatus.FORBIDDEN, "Zgłoszenie należy do innego użytkownika");
         return report;
     }
 
     private ReportResponse response(Report r, Jwt jwt, boolean details) {
         boolean owner = users.isAuthor(r.getAuthor(), jwt);
-        var location = owner && details ? new ReportRequests.Location(r.getLocationLabel(),
+        var location = owner && details ? new ReportLocation(r.getLocationLabel(),
                 r.getLocationPoint().getX(), r.getLocationPoint().getY()) : null;
         return new ReportResponse(r.getId(), r.getTitle(), r.getType().name().toLowerCase(Locale.ROOT),
                 r.getCategory().getName(), r.getCategory().getCode(), r.getLocationLabel(), r.getEventDate(),
@@ -113,8 +118,9 @@ public class ReportService {
                 r.getCreatedAt(), r.getUpdatedAt(), r.getResolvedAt(), location);
     }
 
-    private void apply(Report report, ReportRequests.Content content) {
-        if (content.eventDate().isAfter(LocalDate.now(clock))) throw error(HttpStatus.BAD_REQUEST, "Data zdarzenia nie może być przyszła");
+    private void apply(Report report, ReportContent content) {
+        if (content.eventDate().isAfter(LocalDate.now(clock)))
+            throw error(HttpStatus.BAD_REQUEST, "Data zdarzenia nie może być przyszła");
         var location = content.location();
         if (!Double.isFinite(location.longitude()) || !Double.isFinite(location.latitude()))
             throw error(HttpStatus.BAD_REQUEST, "Współrzędne muszą być skończonymi liczbami");
@@ -128,7 +134,8 @@ public class ReportService {
 
     private void validateFilter(ReportFilter f) {
         int provided = (f.longitude() == null ? 0 : 1) + (f.latitude() == null ? 0 : 1) + (f.radiusMeters() == null ? 0 : 1);
-        if (provided != 0 && provided != 3) throw error(HttpStatus.BAD_REQUEST, "Podaj longitude, latitude i radiusMeters razem");
+        if (provided != 0 && provided != 3)
+            throw error(HttpStatus.BAD_REQUEST, "Podaj longitude, latitude i radiusMeters razem");
         if (provided == 3 && (!Double.isFinite(f.longitude()) || !Double.isFinite(f.latitude()) || !Double.isFinite(f.radiusMeters())))
             throw error(HttpStatus.BAD_REQUEST, "Parametry przestrzenne muszą być skończonymi liczbami");
         if (f.dateFrom() != null && f.dateTo() != null && f.dateFrom().isAfter(f.dateTo()))
@@ -136,8 +143,11 @@ public class ReportService {
     }
 
     private void checkVersion(Report report, long version) {
-        if (report.getVersion() != version) throw error(HttpStatus.CONFLICT, "Zgłoszenie zostało zmienione; pobierz aktualną wersję");
+        if (report.getVersion() != version)
+            throw error(HttpStatus.CONFLICT, "Zgłoszenie zostało zmienione; pobierz aktualną wersję");
     }
 
-    private static ResponseStatusException error(HttpStatus status, String reason) { return new ResponseStatusException(status, reason); }
+    private static ResponseStatusException error(HttpStatus status, String reason) {
+        return new ResponseStatusException(status, reason);
+    }
 }

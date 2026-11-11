@@ -45,20 +45,20 @@ public class ReportController {
 
     @PostMapping
     @ApiResponse(responseCode = "201", description = "Zgłoszenie utworzone")
-    public ResponseEntity<ReportResponse> create(@Valid @RequestBody ReportRequests.Create request,
+    public ResponseEntity<ReportResponse> create(@Valid @RequestBody CreateReportRequest request,
                                                 @AuthenticationPrincipal Jwt jwt) {
         var report = reports.create(request, users.require(jwt), jwt);
         return ResponseEntity.created(URI.create("/api/reports/" + report.id())).body(report);
     }
 
     @PutMapping("/{id}")
-    public ReportResponse update(@PathVariable UUID id, @Valid @RequestBody ReportRequests.Update request,
+    public ReportResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateReportRequest request,
                                  @AuthenticationPrincipal Jwt jwt) {
         return reports.update(id, request, jwt);
     }
 
     @PatchMapping("/{id}/status")
-    public ReportResponse resolve(@PathVariable UUID id, @Valid @RequestBody ReportRequests.Resolve request,
+    public ReportResponse resolve(@PathVariable UUID id, @Valid @RequestBody ResolveReportRequest request,
                                   @AuthenticationPrincipal Jwt jwt) {
         return reports.resolve(id, request, jwt);
     }
