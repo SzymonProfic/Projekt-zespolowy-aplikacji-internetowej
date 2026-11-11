@@ -1,0 +1,65 @@
+.report-page {
+  max-width: 760px;
+  margin: 38px auto 0;
+}
+
+.report-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: #176f60;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.report-page__back:hover { text-decoration: underline; }
+
+.report-panel {
+  padding: clamp(18px, 5vw, 30px);
+  margin-top: 14px;
+  border: 1px solid #e2e8dc;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 35px #284d3508;
+  overflow-wrap: anywhere;
+}
+
+.report-page h1 {
+  margin: 10px 0;
+  font-size: clamp(26px, 5vw, 36px);
+  line-height: 1.18;
+  letter-spacing: -1px;
+}
+
+.report-page__muted {
+  margin: 8px 0;
+  color: #52664c;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.report-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid #cbdccf;
+  border-radius: 8px;
+  background: #fff;
+  color: #176f60;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.report-action:hover { background: #eff5ed; }
+.report-message .report-action { margin-top: 10px; }
+
+@media (max-width: 600px) {
+  .report-page { margin-top: 22px; }
+}

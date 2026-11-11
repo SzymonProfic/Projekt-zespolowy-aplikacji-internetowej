@@ -12,12 +12,14 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Report } from '../../types/report';
 import './ReportCard.css';
 
 interface ReportCardProps {
   report: Report;
   onSelect?: (report: Report) => void;
+  detailsTo?: string;
 }
 
 const categoryAppearance = new Map<string, { icon: LucideIcon; variant: string }>([
@@ -36,7 +38,7 @@ const dateFormatter = new Intl.DateTimeFormat('pl-PL', {
   timeZone: 'UTC',
 });
 
-export function ReportCard({ report, onSelect }: ReportCardProps) {
+export function ReportCard({ report, onSelect, detailsTo }: ReportCardProps) {
   const titleId = useId();
   const { icon: Icon, variant } = categoryAppearance.get(report.category) ?? {
     icon: Package,
@@ -77,7 +79,12 @@ export function ReportCard({ report, onSelect }: ReportCardProps) {
             <span className="report-card__status-dot" aria-hidden="true" />
             {report.recovered ? 'Zakończone' : 'Aktywne ogłoszenie'}
           </span>
-          {onSelect && (
+          {detailsTo ? (
+            <Link className="report-card__select" to={detailsTo} aria-label={`Zobacz szczegóły: ${report.title}`}>
+              Zobacz szczegóły
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
+          ) : onSelect && (
             <button
               className="report-card__select"
               type="button"

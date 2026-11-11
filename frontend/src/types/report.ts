@@ -17,3 +17,17 @@ export interface Category {
   code: string;
   name: string;
 }
+
+export interface ReportLocation {
+  label: string;
+  longitude: number;
+  latitude: number;
+}
+
+export interface ReportDetails extends Report {
+  categoryCode: string;
+  owner: boolean;
+  status: 'ACTIVE' | 'RESOLVED';
+  version: number;
+  editableLocation: ReportLocation | null;
+}
