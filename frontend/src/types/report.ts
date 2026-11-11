@@ -11,3 +11,9 @@ export interface Report {
   owner?: boolean;
   recovered?: boolean;
 }
+
+export interface Category {
+  id: string;
+  code: string;
+  name: string;
+}
