@@ -31,3 +31,16 @@ export interface ReportDetails extends Report {
   version: number;
   editableLocation: ReportLocation | null;
 }
+
+export interface ReportContent {
+  title: string;
+  categoryCode: string;
+  description: string;
+  color: string | null;
+  eventDate: string;
+  location: ReportLocation;
+}
+
+export interface CreateReportRequest extends ReportContent {
+  type: Report['type'];
+}

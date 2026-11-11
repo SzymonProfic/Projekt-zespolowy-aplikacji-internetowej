@@ -1,4 +1,4 @@
-import type { Category, Report, ReportDetails } from '../types/report';
+import type { Category, CreateReportRequest, Report, ReportDetails } from '../types/report';
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
 
@@ -32,6 +32,15 @@ export function getReportById(id: string, accessToken: string | null, signal?: A
   return requestReport(`/api/reports/${encodeURIComponent(id)}`, { accessToken, signal });
 }
 
+export function createReport(report: CreateReportRequest, accessToken: string, signal?: AbortSignal) {
+  return requestReport('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify(report),
+    accessToken,
+    signal,
+  });
+}
+
 export interface ReportFilters {
   type: '' | 'lost' | 'found';
   status: 'ACTIVE' | 'RESOLVED' | 'ALL';
@@ -49,8 +58,8 @@ interface ReportPage {
   totalPages: number;
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const response = await fetch(`${apiUrl}/api/categories`, { cache: 'no-store' });
+export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
+  const response = await fetch(`${apiUrl}/api/categories`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error('Categories unavailable');
   return response.json() as Promise<Category[]>;
 }

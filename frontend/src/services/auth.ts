@@ -127,11 +127,16 @@ export async function retryProfile() {
   }
 }
 
+function authReturnUrl() {
+  const { origin, pathname, search } = window.location;
+  return origin + pathname + search;
+}
+
 export async function login() {
   await initializeAuth();
   if (!initialized || !client) return;
   try {
-    await client.login({ redirectUri: window.location.origin + '/', scope: 'openid profile email' });
+    await client.login({ redirectUri: authReturnUrl(), scope: 'openid profile email' });
   } catch {
     publish({ status: 'error', error: 'Nie udało się otworzyć logowania. Spróbuj ponownie.' });
   }
@@ -141,7 +146,7 @@ export async function register() {
   await initializeAuth();
   if (!initialized || !client) return;
   try {
-    await client.register({ redirectUri: window.location.origin + '/', scope: 'openid profile email' });
+    await client.register({ redirectUri: authReturnUrl(), scope: 'openid profile email' });
   } catch {
     publish({ status: 'error', error: 'Nie udało się otworzyć rejestracji. Spróbuj ponownie.' });
   }

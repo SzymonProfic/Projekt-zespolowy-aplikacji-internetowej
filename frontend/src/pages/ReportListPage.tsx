@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ReportCard } from '../components/ReportCard/ReportCard';
 import { demoReports } from '../demo/reports';
 import { getCategories, getReports, type ReportFilters } from '../services/reports';
@@ -85,6 +87,9 @@ export function ReportListPage() {
         <p className="foundly-eyebrow">ZGUBIONE I ZNALEZIONE</p>
         <h1>Pomóż przedmiotom wrócić do domu.</h1>
         <p>Przeszukaj zgłoszenia i znajdź przedmiot, którego szukasz.</p>
+        <Link className="report-action report-action--primary foundly-heading__action" to="/ogloszenia/nowe">
+          <Plus size={17} aria-hidden="true" /> Dodaj zgłoszenie
+        </Link>
       </header>
 
       <form className="filters" onSubmit={applyFilters}>

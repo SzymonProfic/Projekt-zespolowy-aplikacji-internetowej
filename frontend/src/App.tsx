@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSession } from './components/AccountSession/AccountSession';
 import { ReportMessage, ReportPage } from './components/ReportPage/ReportPage';
+import { CreateReportPage } from './pages/CreateReportPage';
 import { ReportDetailsPage } from './pages/ReportDetailsPage';
 import { ReportListPage } from './pages/ReportListPage';
 
@@ -25,6 +26,7 @@ export default function App() {
       </div>
       <Routes>
         <Route path="/" element={<ReportListPage />} />
+        <Route path="/ogloszenia/nowe" element={<CreateReportPage />} />
         <Route path="/ogloszenia/:id" element={<ReportDetailsPage />} />
         <Route path="*" element={
           <ReportPage>

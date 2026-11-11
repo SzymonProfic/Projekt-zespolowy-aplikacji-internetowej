@@ -1,5 +1,5 @@
 import { ShieldCheck } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { ReportMessage, ReportPage } from '../components/ReportPage/ReportPage';
 import { useReportDetails } from '../hooks/useReportDetails';
 import './ReportDetailsPage.css';
@@ -9,9 +9,13 @@ const dateFormatter = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'long', time
 export function ReportDetailsPage() {
   const { id = '' } = useParams();
   const { state, retry } = useReportDetails(id);
+  const { state: navigationState } = useLocation();
 
   return (
     <ReportPage>
+      {navigationState?.reportSaved === 'created' && (
+        <p className="report-notice" role="status">Ogłoszenie zostało opublikowane.</p>
+      )}
       {state.status === 'loading' && (
         <ReportMessage title="Szczegóły zgłoszenia">
           <p className="report-page__muted" role="status">Ładowanie zgłoszenia…</p>

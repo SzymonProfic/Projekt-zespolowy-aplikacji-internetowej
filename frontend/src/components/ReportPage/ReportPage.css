@@ -58,6 +58,26 @@
 }
 
 .report-action:hover { background: #eff5ed; }
+.report-action--primary { border-color: #176f60; background: #176f60; color: #fff; }
+.report-action--primary:hover { background: #105c50; }
+.report-action:disabled { opacity: .56; cursor: default; }
+
+.report-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #dae7d5;
+  border-radius: 8px;
+  background: #f1f7ed;
+  color: #375c37;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.report-notice--error { border-color: #efc7c2; background: #fff8f7; color: #96372d; }
 .report-message .report-action { margin-top: 10px; }
 
 @media (max-width: 600px) {

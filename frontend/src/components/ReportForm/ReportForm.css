@@ -1,0 +1,108 @@
+.report-form__heading { margin-top: 16px; }
+
+.report-form__fields,
+.report-form__type,
+.report-form__location {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.report-form__fields {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.report-form__type legend,
+.report-form__location legend,
+.report-form__field label {
+  padding: 0;
+  color: #40544e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.report-form__segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #f1f5ed;
+}
+
+.report-form__choice {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.report-form__choice input { position: absolute; opacity: 0; }
+.report-form__choice span {
+  display: grid;
+  min-height: 42px;
+  padding: 8px;
+  place-items: center;
+  border-radius: 6px;
+  color: #52664c;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+.report-form__choice input:checked + span {
+  background: #fff;
+  color: #176f60;
+  font-weight: 650;
+  box-shadow: 0 1px 4px #284d3510;
+}
+.report-form__choice input:focus-visible + span { outline: 3px solid #69b4a2; outline-offset: 2px; }
+.report-form__choice input:disabled + span { cursor: default; }
+
+.report-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.report-form__field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 7px;
+}
+
+.report-form__field input,
+.report-form__field select,
+.report-form__field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #dce3da;
+  border-radius: 8px;
+  background: #fcfdfb;
+  color: #253c39;
+  font: inherit;
+  font-size: 14px;
+}
+
+.report-form__field textarea { resize: vertical; }
+.report-form__field textarea:focus-visible { outline: 3px solid #69b4a2; outline-offset: 2px; }
+.report-form__field [aria-invalid="true"] { border-color: #b34b3e; }
+.report-form__field-error { margin: 0; color: #96372d; font-size: 12px; line-height: 1.45; }
+
+.report-form__location .report-page__muted { margin: 6px 0 10px; font-size: 13px; }
+
+.report-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+@media (max-width: 560px) {
+  .report-form__grid { grid-template-columns: 1fr; }
+}
