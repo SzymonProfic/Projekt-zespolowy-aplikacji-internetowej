@@ -1,4 +1,4 @@
-import type { Report, ReportContent } from '../types/report';
+import type { Report, ReportContent, ReportDetails, ReportLocation } from '../types/report';
 
 export interface ReportFormValues {
   type: Report['type'];
@@ -14,6 +14,27 @@ export interface ReportFormValues {
 
 export type ReportFormField = Exclude<keyof ReportFormValues, 'type'>;
 export type ReportFormErrors = Partial<Record<ReportFormField, string>>;
+
+type EditableReport = ReportDetails & { editableLocation: ReportLocation };
+
+export function canEditReport(report: ReportDetails): report is EditableReport {
+  return report.owner && report.status === 'ACTIVE' && report.editableLocation !== null;
+}
+
+export function reportToFormValues(report: EditableReport): ReportFormValues {
+  const { label, latitude, longitude } = report.editableLocation;
+  return {
+    type: report.type,
+    title: report.title,
+    categoryCode: report.categoryCode,
+    description: report.description,
+    color: report.color,
+    eventDate: report.date,
+    locationLabel: label,
+    latitude: String(latitude),
+    longitude: String(longitude),
+  };
+}
 
 const warsawDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Warsaw',

@@ -3,6 +3,7 @@ import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSession } from './components/AccountSession/AccountSession';
 import { ReportMessage, ReportPage } from './components/ReportPage/ReportPage';
 import { CreateReportPage } from './pages/CreateReportPage';
+import { EditReportPage } from './pages/EditReportPage';
 import { ReportDetailsPage } from './pages/ReportDetailsPage';
 import { ReportListPage } from './pages/ReportListPage';
 
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/" element={<ReportListPage />} />
         <Route path="/ogloszenia/nowe" element={<CreateReportPage />} />
         <Route path="/ogloszenia/:id" element={<ReportDetailsPage />} />
+        <Route path="/ogloszenia/:id/edytuj" element={<EditReportPage />} />
         <Route path="*" element={
           <ReportPage>
             <ReportMessage title="Nie znaleziono strony">Sprawdź adres albo wróć do listy ogłoszeń.</ReportMessage>

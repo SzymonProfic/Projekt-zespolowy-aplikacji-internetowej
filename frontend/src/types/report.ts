@@ -44,3 +44,8 @@ export interface ReportContent {
 export interface CreateReportRequest extends ReportContent {
   type: Report['type'];
 }
+
+export interface UpdateReportRequest {
+  version: number;
+  content: ReportContent;
+}

@@ -1,4 +1,4 @@
-import type { Category, CreateReportRequest, Report, ReportDetails } from '../types/report';
+import type { Category, CreateReportRequest, Report, ReportDetails, UpdateReportRequest } from '../types/report';
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
 
@@ -35,6 +35,15 @@ export function getReportById(id: string, accessToken: string | null, signal?: A
 export function createReport(report: CreateReportRequest, accessToken: string, signal?: AbortSignal) {
   return requestReport('/api/reports', {
     method: 'POST',
+    body: JSON.stringify(report),
+    accessToken,
+    signal,
+  });
+}
+
+export function updateReport(id: string, report: UpdateReportRequest, accessToken: string, signal?: AbortSignal) {
+  return requestReport(`/api/reports/${encodeURIComponent(id)}`, {
+    method: 'PUT',
     body: JSON.stringify(report),
     accessToken,
     signal,

@@ -1,7 +1,10 @@
-import { ShieldCheck } from 'lucide-react';
-import { useLocation, useParams } from 'react-router-dom';
-import { ReportMessage, ReportPage } from '../components/ReportPage/ReportPage';
+import { useSyncExternalStore } from 'react';
+import { Pencil, ShieldCheck } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { ReportLoadMessage, ReportPage } from '../components/ReportPage/ReportPage';
 import { useReportDetails } from '../hooks/useReportDetails';
+import { getAuthSnapshot, subscribeAuth } from '../services/auth';
+import { canEditReport } from '../utils/reportForm';
 import './ReportDetailsPage.css';
 
 const dateFormatter = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'long', timeZone: 'UTC' });
@@ -10,28 +13,17 @@ export function ReportDetailsPage() {
   const { id = '' } = useParams();
   const { state, retry } = useReportDetails(id);
   const { state: navigationState } = useLocation();
+  const { signedIn } = useSyncExternalStore(subscribeAuth, getAuthSnapshot);
 
   return (
     <ReportPage>
       {navigationState?.reportSaved === 'created' && (
         <p className="report-notice" role="status">Ogłoszenie zostało opublikowane.</p>
       )}
-      {state.status === 'loading' && (
-        <ReportMessage title="Szczegóły zgłoszenia">
-          <p className="report-page__muted" role="status">Ładowanie zgłoszenia…</p>
-        </ReportMessage>
+      {navigationState?.reportSaved === 'updated' && (
+        <p className="report-notice" role="status">Zmiany w zgłoszeniu zostały zapisane.</p>
       )}
-      {state.status === 'not-found' && (
-        <ReportMessage title="Nie znaleziono zgłoszenia">
-          <p className="report-page__muted">Ogłoszenie mogło zostać usunięte lub adres jest niepoprawny.</p>
-        </ReportMessage>
-      )}
-      {state.status === 'error' && (
-        <ReportMessage title="Nie udało się pobrać zgłoszenia">
-          <p className="report-page__muted" role="alert">Sprawdź połączenie i spróbuj ponownie.</p>
-          <button className="report-action" type="button" onClick={retry}>Spróbuj ponownie</button>
-        </ReportMessage>
-      )}
+      {state.status !== 'found' && <ReportLoadMessage status={state.status} onRetry={retry} />}
       {state.status === 'found' && (
         <article className="report-panel" aria-labelledby="report-title">
           <span className={`report-details__badge report-details__badge--${state.report.type}`}>
@@ -51,6 +43,13 @@ export function ReportDetailsPage() {
             <ShieldCheck size={21} aria-hidden="true" />
             Dla bezpieczeństwa poproś o opis cech szczególnych. Ogłoszenie nie potwierdza własności.
           </p>
+          {signedIn && canEditReport(state.report) && (
+            <div className="report-details__actions">
+              <Link className="report-action" to={`/ogloszenia/${state.report.id}/edytuj`}>
+                <Pencil size={16} aria-hidden="true" /> Edytuj zgłoszenie
+              </Link>
+            </div>
+          )}
         </article>
       )}
     </ReportPage>

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAccessToken, getAuthSnapshot, login, subscribeAuth } from '../../services/auth';
-import { createReport, getCategories, ReportRequestError } from '../../services/reports';
+import { createReport, getCategories, ReportRequestError, updateReport } from '../../services/reports';
 import type { Category } from '../../types/report';
 import { todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
 import './ReportForm.css';
@@ -19,6 +19,10 @@ const emptyValues: ReportFormValues = {
 };
 
 type CategoriesState = { status: 'loading' } | { status: 'ready'; items: Category[] } | { status: 'error' };
+
+interface ReportFormProps {
+  editing?: { id: string; version: number; initialValues: ReportFormValues };
+}
 
 function Field({ id, label, required, error, children }: {
   id: string;
@@ -41,21 +45,25 @@ function saveErrorMessage(error: unknown) {
   if (error.status === 400) return 'Serwer odrzucił zgłoszenie. Sprawdź wprowadzone dane i spróbuj ponownie.';
   if (error.status === 401) return 'Zaloguj się ponownie, aby zapisać zgłoszenie.';
   if (error.status === 403) return 'Nie masz uprawnień do zapisania tego zgłoszenia.';
+  if (error.status === 404) return 'To zgłoszenie nie jest już dostępne.';
+  if (error.status === 409) return `${error.message.trim().replace(/[.!?]+$/, '')}. Wróć do szczegółów, aby sprawdzić aktualny stan.`;
   return 'Nie udało się zapisać zgłoszenia. Spróbuj ponownie.';
 }
 
-export function ReportForm() {
+export function ReportForm({ editing }: ReportFormProps) {
   const navigate = useNavigate();
   const formId = useId();
   const session = useSyncExternalStore(subscribeAuth, getAuthSnapshot);
-  const [values, setValues] = useState(emptyValues);
+  const [values, setValues] = useState(() => editing?.initialValues ?? emptyValues);
   const [categories, setCategories] = useState<CategoriesState>({ status: 'loading' });
   const [categoryAttempt, setCategoryAttempt] = useState(0);
   const [errors, setErrors] = useState<ReportFormErrors>({});
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState<{ message: string; status?: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const activeSave = useRef<AbortController | null>(null);
   const today = todayInWarsaw();
+  const cancelTo = editing ? `/ogloszenia/${editing.id}` : '/';
+  const needsCurrentVersion = Boolean(editing && submitError?.status === 409);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,9 +94,9 @@ export function ReportForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (activeSave.current || !session.signedIn || categories.status !== 'ready') return;
+    if (activeSave.current || !session.signedIn || categories.status !== 'ready' || needsCurrentVersion) return;
     const validation = validateReportForm(values, todayInWarsaw(), categories.items.map(({ code }) => code));
-    setSubmitError('');
+    setSubmitError(null);
 
     if (!validation.ok) {
       setErrors(validation.errors);
@@ -105,12 +113,19 @@ export function ReportForm() {
       const accessToken = await getAccessToken();
       if (controller.signal.aborted) return;
       if (!accessToken) throw new ReportRequestError(401, 'Brak aktywnej sesji');
-      const saved = await createReport({ type: values.type, ...validation.content }, accessToken, controller.signal);
+      const saved = editing
+        ? await updateReport(editing.id, { version: editing.version, content: validation.content }, accessToken, controller.signal)
+        : await createReport({ type: values.type, ...validation.content }, accessToken, controller.signal);
       if (!controller.signal.aborted) {
-        navigate(`/ogloszenia/${saved.id}`, { replace: true, state: { reportSaved: 'created' } });
+        navigate(`/ogloszenia/${saved.id}`, { replace: true, state: { reportSaved: editing ? 'updated' : 'created' } });
       }
     } catch (error) {
-      if (!controller.signal.aborted) setSubmitError(saveErrorMessage(error));
+      if (!controller.signal.aborted) {
+        setSubmitError({
+          message: saveErrorMessage(error),
+          status: error instanceof ReportRequestError ? error.status : undefined,
+        });
+      }
     } finally {
       activeSave.current = null;
       if (!controller.signal.aborted) setSaving(false);
@@ -121,7 +136,7 @@ export function ReportForm() {
     <>
       <header className="report-form__heading">
         <p className="foundly-eyebrow">KAŻDE OGŁOSZENIE TO NOWA SZANSA</p>
-        <h1>Pomóż rzeczom wrócić do domu.</h1>
+        <h1>{editing ? 'Edytuj zgłoszenie' : 'Pomóż rzeczom wrócić do domu.'}</h1>
         <p className="report-page__muted">Kilka szczegółów może zrobić wielką różnicę.</p>
       </header>
 
@@ -131,7 +146,7 @@ export function ReportForm() {
           <div className="report-notice" role="status">
             {session.status === 'loading' ? 'Sprawdzanie sesji…' : (
               <>
-                <span>Zaloguj się, aby opublikować zgłoszenie.</span>
+                <span>Zaloguj się, aby {editing ? 'zapisać zmiany' : 'opublikować zgłoszenie'}.</span>
                 <button className="report-action" type="button" onClick={() => void login()}>Zaloguj się</button>
               </>
             )}
@@ -148,7 +163,11 @@ export function ReportForm() {
         )}
 
         <fieldset className="report-form__fields" disabled={saving || !session.signedIn}>
-          <fieldset className="report-form__type">
+          {editing ? (
+            <p className="report-form__fixed-type">
+              Rodzaj zgłoszenia: <strong>{values.type === 'lost' ? 'Zgubiono' : 'Znaleziono'}</strong>
+            </p>
+          ) : <fieldset className="report-form__type">
             <legend>Rodzaj zgłoszenia</legend>
             <div className="report-form__segmented">
               <label className="report-form__choice">
@@ -162,7 +181,7 @@ export function ReportForm() {
                 <span>Znalazłem przedmiot</span>
               </label>
             </div>
-          </fieldset>
+          </fieldset>}
 
           <Field id={fieldId('title')} label="Nazwa przedmiotu" required error={errors.title}>
             <input {...fieldProps('title')} required minLength={3} maxLength={150} placeholder="np. Słuchawki Apple AirPods Pro" />
@@ -172,6 +191,9 @@ export function ReportForm() {
             <Field id={fieldId('categoryCode')} label="Kategoria" required error={errors.categoryCode}>
               <select {...fieldProps('categoryCode')} required disabled={categories.status !== 'ready'}>
                 <option value="">{categories.status === 'loading' ? 'Ładowanie kategorii…' : 'Wybierz kategorię'}</option>
+                {categories.status === 'ready' && values.categoryCode && !categories.items.some(({ code }) => code === values.categoryCode) && (
+                  <option value={values.categoryCode} disabled>Dotychczasowa kategoria jest niedostępna</option>
+                )}
                 {categories.status === 'ready' && categories.items.map((category) => (
                   <option key={category.code} value={category.code}>{category.name}</option>
                 ))}
@@ -213,13 +235,13 @@ export function ReportForm() {
         {Object.values(errors).some(Boolean) && (
           <p className="report-notice report-notice--error" role="alert">Popraw zaznaczone pola przed zapisaniem.</p>
         )}
-        {submitError && <p className="report-notice report-notice--error" role="alert">{submitError}</p>}
+        {submitError && <p className="report-notice report-notice--error" role="alert">{submitError.message}</p>}
 
         <div className="report-form__actions">
-          {!saving && <Link className="report-action" to="/">Anuluj</Link>}
+          {!saving && <Link className="report-action" to={cancelTo}>{needsCurrentVersion ? 'Wróć do szczegółów' : 'Anuluj'}</Link>}
           <button className="report-action report-action--primary" type="submit"
-            disabled={saving || !session.signedIn || categories.status !== 'ready'}>
-            {saving ? 'Publikowanie…' : 'Opublikuj zgłoszenie'}
+            disabled={saving || !session.signedIn || categories.status !== 'ready' || needsCurrentVersion}>
+            {editing ? (saving ? 'Zapisywanie…' : 'Zapisz zmiany') : (saving ? 'Publikowanie…' : 'Opublikuj zgłoszenie')}
           </button>
         </div>
       </form>

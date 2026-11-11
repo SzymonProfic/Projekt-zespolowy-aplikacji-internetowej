@@ -45,6 +45,12 @@
 
 .report-details__note svg { flex-shrink: 0; }
 
+.report-details__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
 @media (max-width: 560px) {
   .report-details__facts { grid-template-columns: 1fr; gap: 12px; }
 }

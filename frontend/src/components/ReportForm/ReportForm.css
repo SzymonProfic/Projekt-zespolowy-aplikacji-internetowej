@@ -60,6 +60,15 @@
 .report-form__choice input:focus-visible + span { outline: 3px solid #69b4a2; outline-offset: 2px; }
 .report-form__choice input:disabled + span { cursor: default; }
 
+.report-form__fixed-type {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f1f5ed;
+  color: #40544e;
+  font-size: 14px;
+}
+
 .report-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
