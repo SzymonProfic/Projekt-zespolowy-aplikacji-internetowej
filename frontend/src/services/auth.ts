@@ -64,6 +64,13 @@ function clearSession() {
   publish({ status: 'anonymous', signedIn: false, profile: null, error: null });
 }
 
+function expireSession(keycloak: Keycloak) {
+  if (client !== keycloak) return;
+  keycloak.clearToken();
+  clearSession();
+  publish({ error: 'Sesja wygasła. Zaloguj się ponownie.' });
+}
+
 export function initializeAuth(): Promise<void> {
   if (initialization) return initialization;
   publish({ status: 'loading', signedIn: false, profile: null, error: null });
@@ -76,11 +83,7 @@ export function initializeAuth(): Promise<void> {
   keycloak.onAuthLogout = clearSession;
   keycloak.onAuthRefreshSuccess = () => { void synchronizeProfile(); };
   keycloak.onTokenExpired = () => {
-    void keycloak.updateToken(30).catch(() => {
-      keycloak.clearToken();
-      clearSession();
-      publish({ error: 'Sesja wygasła. Zaloguj się ponownie.' });
-    });
+    void keycloak.updateToken(30).catch(() => expireSession(keycloak));
   };
   initialization = keycloak.init({
     onLoad: 'check-sso',
@@ -98,25 +101,42 @@ export function initializeAuth(): Promise<void> {
   return initialization;
 }
 
+export async function getAccessToken(): Promise<string | null> {
+  await initializeAuth();
+  const keycloak = client;
+  if (!initialized || !keycloak?.authenticated) return null;
+  try {
+    await keycloak.updateToken(30);
+    return keycloak.authenticated ? keycloak.token ?? null : null;
+  } catch {
+    expireSession(keycloak);
+    return null;
+  }
+}
+
 export async function retryProfile() {
   if (!initialized) { await initializeAuth(); return; }
-  if (!client?.authenticated) { clearSession(); return; }
+  const keycloak = client;
+  if (!keycloak?.authenticated) { clearSession(); return; }
   try {
     // A refresh triggers synchronization through onAuthRefreshSuccess.
-    const refreshed = await client.updateToken(30);
+    const refreshed = await keycloak.updateToken(30);
     if (!refreshed) await synchronizeProfile();
   } catch {
-    client.clearToken();
-    clearSession();
-    publish({ error: 'Sesja wygasła. Zaloguj się ponownie.' });
+    expireSession(keycloak);
   }
+}
+
+function authReturnUrl() {
+  const { origin, pathname, search } = window.location;
+  return origin + pathname + search;
 }
 
 export async function login() {
   await initializeAuth();
   if (!initialized || !client) return;
   try {
-    await client.login({ redirectUri: window.location.origin + '/', scope: 'openid profile email' });
+    await client.login({ redirectUri: authReturnUrl(), scope: 'openid profile email' });
   } catch {
     publish({ status: 'error', error: 'Nie udało się otworzyć logowania. Spróbuj ponownie.' });
   }
@@ -126,7 +146,7 @@ export async function register() {
   await initializeAuth();
   if (!initialized || !client) return;
   try {
-    await client.register({ redirectUri: window.location.origin + '/', scope: 'openid profile email' });
+    await client.register({ redirectUri: authReturnUrl(), scope: 'openid profile email' });
   } catch {
     publish({ status: 'error', error: 'Nie udało się otworzyć rejestracji. Spróbuj ponownie.' });
   }

@@ -42,6 +42,10 @@ public final class ReportSpecifications {
                         builder.like(builder.lower(root.get("title")), pattern, '!'),
                         builder.like(builder.lower(root.get("description")), pattern, '!')));
             }
+            if (filter.location() != null && !filter.location().isBlank()) {
+                String pattern = "%" + escapeLike(filter.location().strip().toLowerCase(Locale.ROOT)) + "%";
+                predicates.add(builder.like(builder.lower(root.get("locationLabel")), pattern, '!'));
+            }
             if (filter.radiusMeters() != null) {
                 predicates.add(builder.isTrue(builder.function("st_dwithin", Boolean.class,
                         root.get("locationPoint"), geographyPoint(builder, filter.longitude(), filter.latitude()),

@@ -148,6 +148,7 @@
   font: inherit;
   font-size: 11px;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .report-card__select:hover { background: #eff5ed; }

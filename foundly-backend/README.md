@@ -220,6 +220,7 @@ Parametry `GET /api/reports` i `/api/reports/mine`:
 | `status` | `ACTIVE` (domyślny), `RESOLVED` lub `ALL` |
 | `dateFrom`, `dateTo` | Granice daty zdarzenia, włącznie, `YYYY-MM-DD` |
 | `q` | Fragment tytułu lub opisu, bez rozróżniania wielkości liter; `%` i `_` traktowane dosłownie |
+| `location` | Fragment nazwy miejsca zdarzenia, np. `Mokotów`, bez rozróżniania wielkości liter |
 | `longitude`, `latitude`, `radiusMeters` | Komplet parametrów wyszukiwania w promieniu 1–100000 m |
 
 Bez promienia lista jest sortowana od najnowszej publikacji, z deterministycznym rozstrzyganiem remisów po UUID. Z promieniem jest sortowana od najbliższej lokalizacji. Wyszukiwanie używa `ST_DWithin` na `geography(Point,4326)` oraz indeksu GiST dla aktywnych zgłoszeń. Filtry są budowane przez JPA `Specification`, a pobieranie stron i liczenie wyników obsługuje `ReportRepository` z `JpaSpecificationExecutor` oraz `Pageable`. Sortowanie po odległości jest wyrażone przez Criteria API, a po dacie publikacji przez `Sort`. Relacje autora i kategorii są pobierane z `@EntityGraph`, aby uniknąć dodatkowego zapytania dla każdego zgłoszenia.
