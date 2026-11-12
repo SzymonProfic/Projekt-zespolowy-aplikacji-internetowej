@@ -69,6 +69,7 @@
 
 .report-form__grid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 16px;
 }
@@ -107,6 +108,10 @@
   gap: 10px;
   margin-top: 22px;
 }
+
+.report-form__map h2 { margin: 0; font-size: 18px; }
+.report-form__map > p { font-size: 13px; line-height: 1.6; }
+.report-form__map-status { color: #40544e; }
 
 @media (max-width: 560px) {
   .report-form__grid { grid-template-columns: 1fr; }

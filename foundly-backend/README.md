@@ -132,7 +132,7 @@ Zmienne konfiguracji backendu: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWO
 | --- | --- | --- |
 | `GET /api/categories` | Publiczny | Aktywne kategorie |
 | `GET /api/reports` | Publiczny | Lista, filtry, stronicowanie |
-| `GET /api/reports/{id}` | Publiczny | Szczegóły; współrzędne wyłącznie dla autora |
+| `GET /api/reports/{id}` | Publiczny | Szczegóły z punktem lokalizacji do wyświetlenia na mapie |
 | `POST /api/reports` | Użytkownik | Dodanie zgłoszenia; 201 i nagłówek `Location` |
 | `PUT /api/me` | Użytkownik | Utworzenie lub synchronizacja własnego profilu z tokenu |
 | `GET /api/me` | Użytkownik | Odczyt własnego profilu; 404, jeśli jeszcze nie istnieje |
@@ -225,7 +225,7 @@ Parametry `GET /api/reports` i `/api/reports/mine`:
 
 Bez promienia lista jest sortowana od najnowszej publikacji, z deterministycznym rozstrzyganiem remisów po UUID. Z promieniem jest sortowana od najbliższej lokalizacji. Wyszukiwanie używa `ST_DWithin` na `geography(Point,4326)` oraz indeksu GiST dla aktywnych zgłoszeń. Filtry są budowane przez JPA `Specification`, a pobieranie stron i liczenie wyników obsługuje `ReportRepository` z `JpaSpecificationExecutor` oraz `Pageable`. Sortowanie po odległości jest wyrażone przez Criteria API, a po dacie publikacji przez `Sort`. Relacje autora i kategorii są pobierane z `@EntityGraph`, aby uniknąć dodatkowego zapytania dla każdego zgłoszenia.
 
-Strona ma pola `content`, `page`, `size`, `totalElements`, `totalPages`. Element zawiera wszystkie pola obecnego frontendu (`id`, `title`, `type`, `category`, `location`, `date`, `color`, `description`, `owner`, `recovered`) oraz `categoryCode`, `status`, `version` i znaczniki czasu. W szczegółach autora pole `editableLocation` zawiera etykietę i współrzędne, w innych odpowiedziach jest `null`.
+Strona ma pola `content`, `page`, `size`, `totalElements`, `totalPages`. Element zawiera wszystkie pola obecnego frontendu (`id`, `title`, `type`, `category`, `location`, `date`, `color`, `description`, `owner`, `recovered`) oraz `categoryCode`, `status`, `version` i znaczniki czasu. W szczegółach pole `locationPoint` zawiera publiczne współrzędne (`latitude`, `longitude`) miejsca zdarzenia do wyświetlenia na mapie; na listach jest `null`. W szczegółach autora pole `editableLocation` zawiera etykietę i współrzędne, w innych odpowiedziach jest `null`.
 
 ### Zakres kolejnego sprintu
 
@@ -235,15 +235,12 @@ Automatyczne dopasowywanie zgłoszeń (matching) jest odłożone do kolejnego sp
 
 API stosuje HTTP 400 (walidacja, niepoprawne dane), 401 (brak poprawnego tokenu), 403 (cudze zgłoszenie), 404 (brak zgłoszenia) i 409 (konflikt wersji lub niedozwolony stan). Błędy mają format `application/problem+json` z polami `type`, `title`, `status`, `detail`; przy błędach walidacji DTO szczegóły zależą od Spring MVC.
 
-## Budowanie i testy
-
-Automatyczne testy i ich konfiguracja są przewidziane na osobny sprint. W tym commicie pozostaje tylko pierwotny szkielet testu Spring Boot; nie jest jeszcze dostosowany do PostgreSQL/PostGIS i Keycloak.
-
-Budowanie aplikacji w tym sprincie pomija kompilację i uruchamianie testów:
+## Testy
 
 ```bash
 cd foundly-backend
-./mvnw -Dmaven.test.skip=true package
+./mvnw test
+./mvnw package
 ```
 
-Dockerfile używa tego samego ustawienia. Docelowe testy powinny obejmować CRUD, autoryzację, migracje, filtrowanie PostGIS oraz synchronizację profilu i e-maila; ich implementacja zostanie dodana w osobnym commicie.
+Testy integracyjne uruchamiają tymczasowy PostgreSQL/PostGIS przez Testcontainers, wykonują migracje i sprawdzają API przez MockMvc. Obejmują CRUD, dostęp, walidację, geografię, OpenAPI i współbieżne tworzenie profili. Dekoder JWT jest zastąpiony w testach API; osobne testy rzeczywistego dekodera z lokalnym JWKS sprawdzają podpisy, czas, wystawcę, audience i rodzaj tokenu. Testy integracyjne są pomijane przy braku Dockera — sprawdź liczbę `Skipped` w wyniku. Do pełnej weryfikacji potrzebny jest działający Docker.

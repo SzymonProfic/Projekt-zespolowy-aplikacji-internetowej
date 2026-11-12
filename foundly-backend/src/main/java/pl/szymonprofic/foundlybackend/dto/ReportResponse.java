@@ -7,4 +7,4 @@ public record ReportResponse(UUID id, String title, String type, String category
                              String location, LocalDate date, String color, String description,
                              boolean owner, boolean recovered, String status, long version,
                              Instant createdAt, Instant updatedAt, Instant resolvedAt,
-                             ReportLocation editableLocation) {}
+                             ReportLocation editableLocation, ReportLocationPoint locationPoint) {}

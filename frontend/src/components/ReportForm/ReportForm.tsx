@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getAccessToken, getAuthSnapshot, login, subscribeAuth } from '../../services/auth';
 import { createReport, getCategories, ReportRequestError, updateReport } from '../../services/reports';
 import type { Category } from '../../types/report';
-import { todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
+import { getReportFormPoint, todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
+import { LocationMap } from '../LocationMap/LocationMap';
+import { CitySearch } from '../CitySearch/CitySearch';
 import './ReportForm.css';
 
 const emptyValues: ReportFormValues = {
@@ -63,6 +65,7 @@ export function ReportForm({ editing }: ReportFormProps) {
   const today = todayInWarsaw();
   const cancelTo = editing ? `/ogloszenia/${editing.id}` : '/';
   const needsCurrentVersion = Boolean(editing && submitError?.status === 409);
+  const locationPoint = getReportFormPoint(values);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -209,13 +212,47 @@ export function ReportForm({ editing }: ReportFormProps) {
           </Field>
 
           <div className="report-form__grid">
-            <Field id={fieldId('locationLabel')} label="Miejsce zdarzenia" required error={errors.locationLabel}>
-              <input {...fieldProps('locationLabel')} required minLength={3} maxLength={255} placeholder="np. Częstochowa, Raków" />
-            </Field>
+            <CitySearch id={fieldId('locationLabel')} name="locationLabel" label="Miejsce zdarzenia"
+              required disabled={saving || !session.signedIn} className="report-form__field"
+              value={values.locationLabel} error={errors.locationLabel ?? ''}
+              help="Wybierz miasto z podpowiedzi. Dzielnicę lub ulicę możesz dopisać po przecinku, a dokładny punkt wskazać na mapie."
+              onChange={(locationLabel) => {
+                setValues((previous) => ({ ...previous, locationLabel }));
+                setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+              }}
+              onSelect={(city) => {
+                setValues((previous) => ({
+                  ...previous, locationLabel: city.label,
+                  initialLocation: { label: city.label, ...city.point }, selectedPoint: null,
+                }));
+                setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+              }} />
             <Field id={fieldId('eventDate')} label="Data zdarzenia" required error={errors.eventDate}>
               <input {...fieldProps('eventDate')} type="date" required max={today} />
             </Field>
           </div>
+          <section className="report-form__map" aria-labelledby={`${formId}-map-heading`}>
+            <h2 id={`${formId}-map-heading`}>Miejsce zdarzenia na mapie</h2>
+            <p className="report-page__muted">
+              Wybierz miasto z podpowiedzi, aby zaznaczyć je na mapie. Kliknij mapę lub przeciągnij znacznik,
+              aby wskazać dokładniejsze miejsce. Podaj też jego nazwę w polu „Miejsce zdarzenia”.
+            </p>
+            <LocationMap point={locationPoint} label={values.locationLabel}
+              onChange={saving || !session.signedIn ? undefined : (selectedPoint) => {
+                setValues((previous) => ({ ...previous, selectedPoint }));
+                setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+              }} />
+            <p className="report-form__map-status" role="status">
+              {locationPoint
+                ? `${values.selectedPoint ? 'Wybrany punkt' : 'Zapisane lub orientacyjne położenie'}: ${locationPoint.latitude.toFixed(5)}, ${locationPoint.longitude.toFixed(5)}.`
+                : 'Wpisz miasto lub wybierz punkt na mapie.'}
+            </p>
+            {values.selectedPoint && (
+              <button className="report-action" type="button" onClick={() => {
+                setValues((previous) => ({ ...previous, selectedPoint: null }));
+              }}>Przywróć położenie z nazwy miejsca</button>
+            )}
+          </section>
         </fieldset>
 
         {Object.values(errors).some(Boolean) && (

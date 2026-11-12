@@ -10,9 +10,10 @@ export interface ReportFormValues {
   eventDate: string;
   locationLabel: string;
   initialLocation: ReportLocation | null;
+  selectedPoint?: ReportLocationPoint | null;
 }
 
-export type ReportFormField = Exclude<keyof ReportFormValues, 'type' | 'initialLocation'>;
+export type ReportFormField = Exclude<keyof ReportFormValues, 'type' | 'initialLocation' | 'selectedPoint'>;
 export type ReportFormErrors = Partial<Record<ReportFormField, string>>;
 
 type EditableReport = ReportDetails & { editableLocation: ReportLocation };
@@ -68,16 +69,30 @@ function isCalendarDate(value: string) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function cityForLabel(label: string) {
+  const [name, region] = label.split(',', 2).map(normalizeCityName);
+  const city = pointsByCity.get(name);
+  const point = Array.isArray(city) ? city.find((entry) => normalizeCityName(entry.region) === region) : city;
+  return { city, point };
+}
+
+export function getReportFormPoint(values: ReportFormValues): ReportLocationPoint | null {
+  const label = values.locationLabel.trim();
+  const point = values.selectedPoint
+    ?? (values.initialLocation?.label.trim() === label ? values.initialLocation : cityForLabel(label).point);
+  if (!point || !Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)
+    || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180) return null;
+  return point;
+}
+
 export function validateReportForm(values: ReportFormValues, today: string, categoryCodes: string[]):
   { ok: true; content: ReportContent } | { ok: false; errors: ReportFormErrors } {
   const title = values.title.trim();
   const description = values.description.trim();
   const color = values.color.trim();
   const label = values.locationLabel.trim();
-  const [name, region] = label.split(',', 2).map(normalizeCityName);
-  const city = pointsByCity.get(name);
-  const cityPoint = Array.isArray(city) ? city.find((entry) => normalizeCityName(entry.region) === region) : city;
-  const point = values.initialLocation?.label.trim() === label ? values.initialLocation : cityPoint;
+  const { city } = cityForLabel(label);
+  const point = getReportFormPoint(values);
   const errors: ReportFormErrors = {};
 
   if (title.length < 3 || title.length > 150) errors.title = 'Podaj nazwę przedmiotu (od 3 do 150 znaków).';
@@ -89,7 +104,7 @@ export function validateReportForm(values: ReportFormValues, today: string, cate
   } else if (!point) {
     errors.locationLabel = Array.isArray(city)
       ? `Dopisz po przecinku województwo (${city.map((entry) => entry.region).join(' lub ')}).`
-      : 'Podaj nazwę miasta w Polsce, np. Częstochowa. Dzielnicę lub ulicę możesz dopisać po przecinku.';
+      : 'Podaj nazwę miasta w Polsce, np. Częstochowa, lub wskaż miejsce na mapie.';
   }
   if (!isCalendarDate(values.eventDate)) errors.eventDate = 'Podaj poprawną datę zdarzenia.';
   else if (values.eventDate > today) errors.eventDate = 'Data zdarzenia nie może być w przyszłości.';

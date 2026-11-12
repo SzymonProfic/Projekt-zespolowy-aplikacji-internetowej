@@ -6,6 +6,7 @@ import { CreateReportPage } from './pages/CreateReportPage';
 import { EditReportPage } from './pages/EditReportPage';
 import { ReportDetailsPage } from './pages/ReportDetailsPage';
 import { ReportListPage } from './pages/ReportListPage';
+import { MyReportsPage } from './pages/MyReportsPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -26,7 +27,8 @@ export default function App() {
         <AccountSession />
       </div>
       <Routes>
-        <Route path="/" element={<ReportListPage />} />
+        <Route path="/" element={<ReportListPage key="public" />} />
+        <Route path="/moje-ogloszenia" element={<MyReportsPage />} />
         <Route path="/ogloszenia/nowe" element={<CreateReportPage />} />
         <Route path="/ogloszenia/:id" element={<ReportDetailsPage />} />
         <Route path="/ogloszenia/:id/edytuj" element={<EditReportPage />} />

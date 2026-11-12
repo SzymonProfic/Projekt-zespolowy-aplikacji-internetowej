@@ -32,6 +32,7 @@ export interface ReportDetails extends Report {
   status: 'ACTIVE' | 'RESOLVED';
   version: number;
   editableLocation: ReportLocation | null;
+  locationPoint?: ReportLocationPoint | null;
 }
 
 export interface ReportContent {

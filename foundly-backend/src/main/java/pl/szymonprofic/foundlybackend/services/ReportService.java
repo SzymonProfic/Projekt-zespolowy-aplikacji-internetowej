@@ -111,11 +111,12 @@ public class ReportService {
         boolean owner = users.isAuthor(r.getAuthor(), jwt);
         var location = owner && details ? new ReportLocation(r.getLocationLabel(),
                 r.getLocationPoint().getX(), r.getLocationPoint().getY()) : null;
+        var point = details ? new ReportLocationPoint(r.getLocationPoint().getY(), r.getLocationPoint().getX()) : null;
         return new ReportResponse(r.getId(), r.getTitle(), r.getType().name().toLowerCase(Locale.ROOT),
                 r.getCategory().getName(), r.getCategory().getCode(), r.getLocationLabel(), r.getEventDate(),
                 r.getColor() == null ? "" : r.getColor(), r.getDescription(), owner,
                 r.getStatus() == ReportStatus.RESOLVED, r.getStatus().name(), r.getVersion(),
-                r.getCreatedAt(), r.getUpdatedAt(), r.getResolvedAt(), location);
+                r.getCreatedAt(), r.getUpdatedAt(), r.getResolvedAt(), location, point);
     }
 
     private void apply(Report report, ReportContent content) {
