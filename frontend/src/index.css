@@ -42,6 +42,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .filters__actions > span { color: #718078; font-size: 12px; }
 .filters__submit { min-height: 40px; padding: 9px 16px; border: 0; border-radius: 7px; background: #176f60; color: #fff; font-size: 13px; font-weight: 650; cursor: pointer; }
 .filters__submit:hover { background: #105c50; }
+.filters__spatial { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e9e0; }
+.filters__spatial > summary { color: #176f60; font-size: 14px; font-weight: 650; cursor: pointer; }
+.filters__map-help, .filters__map-status, .results__area { color: #607057; font-size: 13px; line-height: 1.6; }
+.filters__radius { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.filters__radius .filter-field { flex: 1 1 220px; }
+.filters__radius input[type="range"] { min-height: 28px; padding: 0; accent-color: #176f60; cursor: pointer; }
+.filters__clear:disabled { color: #9aa59b; cursor: default; }
 
 .results { margin-top: 36px; }
 .results__heading { margin-bottom: 18px; }

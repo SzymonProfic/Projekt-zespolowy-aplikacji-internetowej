@@ -24,10 +24,10 @@ Wszystkie poniższe polecenia wykonuj w katalogu `frontend`.
 
 | Polecenie | Działanie |
 | --- | --- |
+| `npm test` | Testy sesji i synchronizacji profilu oraz walidacji formularza, formatu danych i warunków dostępności edycji. |
 | `npm run typecheck` | Sprawdza typy TypeScript bez generowania plików. |
 | `npm run build` | Sprawdza typy i tworzy wersję produkcyjną w `dist/`. |
 | `npm run preview` | Uruchamia lokalny podgląd wcześniej zbudowanej wersji. |
-| `npm test` | Sprawdza walidację formularza, format danych i warunki dostępności edycji. |
 
 Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backend/README.md#konto-demonstracyjne), dodaj zgłoszenie i otwórz jego szczegóły z listy. Sprawdź podpowiedzi po wysłaniu pustego formularza, a następnie edytuj zapisane zgłoszenie. Otwórz edycję w dwóch kartach: po zapisie w pierwszej starszy zapis w drugiej powinien zostać odrzucony, a wpisane wartości powinny pozostać w formularzu.
 
@@ -44,9 +44,13 @@ Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wy
 
 ### Miejsce zdarzenia
 
+W filtrach listy sekcja „Szukaj w promieniu na mapie” pozwala wybrać środek kliknięciem lub przeciągnięciem znacznika i ustawić promień od 0,5 do 100 km. Okrąg pokazuje zasięg. „Pokaż ogłoszenia” stosuje obszar razem z pozostałymi filtrami, a wyniki są sortowane od najbliższych. „Usuń obszar” wyłącza ograniczenie przestrzenne przy następnym zastosowaniu filtrów, a „Wyczyść” od razu resetuje wszystkie filtry. Frontend przekazuje `latitude`, `longitude` i `radiusMeters` do istniejącego API wyszukiwania w promieniu.
+
 Wpisz nazwę miasta, np. **Częstochowa**. Po przecinku możesz dopisać dzielnicę lub ulicę, np. **Częstochowa, Raków**. Przy powtarzającej się nazwie miasta formularz poprosi o województwo, np. **Olsztyn, śląskie**.
 
-Frontend wysyła wpisany tekst oraz orientacyjny punkt miasta z dołączonego wykazu. Wykaz pochodzi z warstwy urzędowych nazw miejscowości według stanu z 12 listopada 2026 r. Edycja pozostałych pól zachowuje dotychczasowy punkt. [Państwowy Rejestr Nazw Geograficznych GUGiK](https://www.geoportal.gov.pl/pl/dane/panstwowy-rejestr-nazw-geograficznych-prng/)
+Mapa Leaflet z podkładem OpenStreetMap pokazuje orientacyjny punkt wpisanego miasta. Kliknięcie mapy lub przeciągnięcie znacznika pozwala wskazać dokładniejsze miejsce w formularzu tworzenia i edycji. Wybrany punkt pozostaje wybrany przy zmianie opisu miejsca; przycisk „Przywróć położenie z nazwy miejsca” cofa ręczny wybór. Nazwa miejsca jest nadal wymagana. Szczegóły ogłoszenia pokazują zapisany punkt wszystkim odwiedzającym. Podkład mapy wymaga połączenia z internetem, bez klucza API.
+
+Frontend wysyła wpisany tekst oraz wybrany punkt, a bez ręcznego wyboru — orientacyjny punkt miasta z dołączonego wykazu. Wykaz pochodzi z warstwy urzędowych nazw miejscowości według stanu z 12 listopada 2026 r. Edycja pozostałych pól zachowuje dotychczasowy punkt. [Państwowy Rejestr Nazw Geograficznych GUGiK](https://www.geoportal.gov.pl/pl/dane/panstwowy-rejestr-nazw-geograficznych-prng/)
 
 Po zapisie aplikacja przechodzi do szczegółów i potwierdza powodzenie. Brak zgłoszenia ma własny widok, a błędy zapisu pozostawiają dane w formularzu. Edycja przekazuje numer wersji otrzymany z API; przy konflikcie `409` trzeba wrócić do szczegółów i pobrać aktualne dane. [Format żądań dodawania i edycji](../foundly-backend/README.md#dodanie-i-edycja).
 
@@ -126,6 +130,4 @@ Adapter `keycloak-js` używa Authorization Code z PKCE S256 i zakresów `openid 
 
 Domyślne adresy to backend `http://localhost:8080` i Keycloak `http://localhost:8081`, realm `foundly`. Można je zmienić w lokalnym pliku `.env.local` na podstawie [.env.example](.env.example): `VITE_API_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`. Przy zmianie origin frontendu trzeba również zmienić callback i Web Origins klienta w Keycloak oraz CORS backendu. `npm run preview` używa innego portu, którego domyślna konfiguracja logowania nie obejmuje.
 
-Implementacja sesji jest w `src/services/auth.ts`, a widok konta w `src/components/AccountSession/`. Formularze używają tej samej sesji do pobrania aktualnego tokenu przed zapisem.
-
-Automatyczne testy synchronizacji sesji zostaną dodane w osobnym sprincie.
+Implementacja sesji jest w `src/services/auth.ts`, jej testy w `src/services/auth.test.ts`, a widok konta w `src/components/AccountSession/`. Formularze używają tej samej sesji do pobrania aktualnego tokenu przed zapisem.

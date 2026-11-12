@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { Pencil, ShieldCheck } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ReportLoadMessage, ReportPage } from '../components/ReportPage/ReportPage';
+import { LocationMap } from '../components/LocationMap/LocationMap';
 import { useReportDetails } from '../hooks/useReportDetails';
 import { getAuthSnapshot, subscribeAuth } from '../services/auth';
 import { canEditReport } from '../utils/reportForm';
@@ -39,6 +40,12 @@ export function ReportDetailsPage() {
             <div><dt>Data zdarzenia</dt><dd><time dateTime={state.report.date}>{dateFormatter.format(new Date(state.report.date))}</time></dd></div>
             <div><dt>Kolor</dt><dd>{state.report.color || 'Nie podano'}</dd></div>
           </dl>
+          <section className="report-details__map" aria-labelledby="report-map-heading">
+            <h2 id="report-map-heading">Miejsce zdarzenia na mapie</h2>
+            {state.report.locationPoint || state.report.editableLocation ? (
+              <LocationMap point={state.report.locationPoint ?? state.report.editableLocation} label={state.report.location} />
+            ) : <p className="report-page__muted">Współrzędne tego miejsca nie są dostępne.</p>}
+          </section>
           <p className="report-details__note">
             <ShieldCheck size={21} aria-hidden="true" />
             Dla bezpieczeństwa poproś o opis cech szczególnych. Ogłoszenie nie potwierdza własności.

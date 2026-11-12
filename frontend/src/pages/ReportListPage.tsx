@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ReportCard } from '../components/ReportCard/ReportCard';
+import { LocationMap } from '../components/LocationMap/LocationMap';
 import { demoReports } from '../demo/reports';
 import { getCategories, getReports, type ReportFilters } from '../services/reports';
 import type { Category, Report } from '../types/report';
 
-const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', location: '' };
+const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', location: '', center: null, radiusKm: 5 };
+const radiusFormatter = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 });
 
 export function ReportListPage() {
   const [filters, setFilters] = useState<ReportFilters>(emptyFilters);
@@ -19,7 +21,7 @@ export function ReportListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const displayedReports = reports.length === 0 && totalElements === 0 && !appliedFilters.location
+  const displayedReports = reports.length === 0 && totalElements === 0 && !appliedFilters.location && !appliedFilters.center
     ? demoReports.filter((report) => {
       const statusMatches = appliedFilters.status === 'ALL' || (appliedFilters.status === 'RESOLVED' ? report.recovered : !report.recovered);
       const typeMatches = !appliedFilters.type || report.type === appliedFilters.type;
@@ -93,6 +95,31 @@ export function ReportListPage() {
               onChange={(event) => changeFilter('location', event.target.value)} />
           </label>
           </div>
+          <details className="filters__spatial">
+            <summary>Szukaj w promieniu na mapie{filters.center ? ` · ${radiusFormatter.format(filters.radiusKm)} km` : ''}</summary>
+            <p className="filters__map-help">
+              Kliknij mapę lub przeciągnij znacznik, aby wybrać środek wyszukiwania.
+              Ustaw promień i wybierz „Pokaż ogłoszenia”. Wyniki będą uporządkowane od najbliższych.
+              Pozostałe filtry również obowiązują.
+            </p>
+            <div className="filters__radius">
+              <label className="filter-field" htmlFor="search-radius">
+                <span>Promień wyszukiwania: {radiusFormatter.format(filters.radiusKm)} km</span>
+                <input id="search-radius" type="range" min="0.5" max="100" step="0.5" value={filters.radiusKm}
+                  aria-valuetext={`${radiusFormatter.format(filters.radiusKm)} km`}
+                  onChange={(event) => changeFilter('radiusKm', Number(event.target.value))} />
+              </label>
+              <button className="filters__clear" type="button" disabled={!filters.center}
+                onClick={() => changeFilter('center', null)}>Usuń obszar</button>
+            </div>
+            <LocationMap point={filters.center} label="Środek wyszukiwania"
+              radiusMeters={filters.radiusKm * 1000} onChange={(point) => changeFilter('center', point)} />
+            <p className="filters__map-status" role="status">
+              {filters.center
+                ? `Wybrany środek: ${filters.center.latitude.toFixed(5)}, ${filters.center.longitude.toFixed(5)}. Promień: ${radiusFormatter.format(filters.radiusKm)} km.`
+                : 'Nie wybrano środka — wyszukiwanie obejmuje wszystkie lokalizacje.'}
+            </p>
+          </details>
           </div>
         </details>
         <div className="filters__actions"><button className="filters__submit" type="submit">Pokaż ogłoszenia</button></div>
@@ -100,6 +127,7 @@ export function ReportListPage() {
 
       <section className="results" aria-live="polite">
         <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{showingDemoReports ? `${displayedReports.length} przykładowe` : `${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
+        {appliedFilters.center && <p className="results__area">Obszar wyszukiwania: {radiusFormatter.format(appliedFilters.radiusKm)} km od punktu {appliedFilters.center.latitude.toFixed(5)}, {appliedFilters.center.longitude.toFixed(5)}. Najbliższe ogłoszenia najpierw.</p>}
         {error && <div className="results__message results__message--error" role="alert">{error}</div>}
         {loading && <div className="results__message">Ładowanie ogłoszeń…</div>}
         {!loading && !error && showingDemoReports && <p className="results__demo-note">To przykładowe zgłoszenia do podglądu. Rzeczywiste ogłoszenia pojawią się po dodaniu ich w aplikacji.</p>}

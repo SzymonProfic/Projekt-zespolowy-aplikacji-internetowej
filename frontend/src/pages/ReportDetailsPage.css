@@ -45,6 +45,9 @@
 
 .report-details__note svg { flex-shrink: 0; }
 
+.report-details__map { margin-top: 24px; }
+.report-details__map h2 { margin: 0 0 12px; font-size: 18px; }
+
 .report-details__actions {
   display: flex;
   justify-content: flex-end;

@@ -1,0 +1,29 @@
+.location-map { min-width: 0; }
+.location-map__canvas {
+  height: 320px;
+  width: 100%;
+  border: 1px solid #dce3da;
+  border-radius: 9px;
+  z-index: 0;
+  font-family: inherit;
+}
+.location-map__pin {
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: #176f60;
+  box-shadow: 0 2px 7px #253c3960;
+}
+.location-map__pin::after {
+  position: absolute;
+  top: 7px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+}
+.location-map__error { color: #96372d; font-size: 13px; line-height: 1.5; }
+@media (max-width: 560px) {
+  .location-map__canvas { height: 260px; }
+}

@@ -1,4 +1,4 @@
-import type { Category, CreateReportRequest, Report, ReportDetails, UpdateReportRequest } from '../types/report';
+import type { Category, CreateReportRequest, Report, ReportDetails, ReportLocationPoint, UpdateReportRequest } from '../types/report';
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
 
@@ -55,6 +55,8 @@ export interface ReportFilters {
   status: 'ACTIVE' | 'RESOLVED' | 'ALL';
   categoryCode: string;
   location: string;
+  center: ReportLocationPoint | null;
+  radiusKm: number;
 }
 
 interface ReportPage {
@@ -76,6 +78,11 @@ export async function getReports(filters: ReportFilters, page: number): Promise<
   if (filters.type) params.set('type', filters.type);
   if (filters.categoryCode) params.set('categoryCode', filters.categoryCode);
   if (filters.location) params.set('location', filters.location);
+  if (filters.center) {
+    params.set('latitude', String(filters.center.latitude));
+    params.set('longitude', String(filters.center.longitude));
+    params.set('radiusMeters', String(filters.radiusKm * 1000));
+  }
   const response = await fetch(`${apiUrl}/api/reports?${params.toString()}`, { cache: 'no-store' });
   if (!response.ok) throw new Error('Reports unavailable');
   return response.json() as Promise<ReportPage>;

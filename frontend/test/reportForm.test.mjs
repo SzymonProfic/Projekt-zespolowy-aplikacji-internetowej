@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canEditReport, reportToFormValues, todayInWarsaw, validateReportForm } from '../src/utils/reportForm.ts';
+import { canEditReport, getReportFormPoint, reportToFormValues, todayInWarsaw, validateReportForm } from '../src/utils/reportForm.ts';
 
 const today = '2026-11-11';
 const categories = ['KEYS', 'OTHER'];
@@ -15,6 +15,24 @@ const validValues = {
   initialLocation: null,
 };
 const czestochowaPoint = { latitude: 50.811932, longitude: 19.127899 };
+
+test('zapisuje wybrany na mapie punkt zamiast środka miasta i zachowuje nazwę miejsca', () => {
+  const selectedPoint = { latitude: 50.82, longitude: 19.13 };
+  const values = { ...validValues, selectedPoint, locationLabel: 'Park przy dworcu' };
+  assert.deepEqual(getReportFormPoint(values), selectedPoint);
+  const result = validateReportForm(values, today, categories);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.content.location, { label: values.locationLabel, ...selectedPoint });
+  assert.equal(validateReportForm({ ...values, locationLabel: '' }, today, categories).ok, false);
+});
+
+test('po usunięciu wybranego punktu przywraca punkt miasta i odrzuca błędne współrzędne', () => {
+  assert.deepEqual(getReportFormPoint({ ...validValues, selectedPoint: null }), czestochowaPoint);
+  for (const selectedPoint of [{ latitude: NaN, longitude: 19 }, { latitude: 91, longitude: 19 }, { latitude: 50, longitude: 181 }]) {
+    assert.equal(getReportFormPoint({ ...validValues, selectedPoint }), null);
+    assert.equal(validateReportForm({ ...validValues, selectedPoint }, today, categories).ok, false);
+  }
+});
 
 test('przygotowuje etykietę i orientacyjny punkt Częstochowy z samej nazwy', () => {
   const result = validateReportForm(validValues, today, categories);
