@@ -1,8 +1,14 @@
-**Foundly — karty ogłoszeń i konto użytkownika**
+# Foundly — zgłoszenia
 
-Frontend zawiera komponent `ReportCard`, podgląd trzech przykładowych kart oraz logowanie Keycloak z synchronizacją własnego profilu przez REST API. Wykorzystuje React, TypeScript, Vite i ikony Lucide. Wymagany Node.js 22.12+ z gałęzi 22 lub Node.js 24+.
+Frontend zawiera listę ogłoszeń z filtrami, widok szczegółów oraz formularze tworzenia i edycji. Logowanie i rejestrację obsługuje Keycloak, a zapis zgłoszeń i odczyt szczegółów — REST API Foundly. Aplikacja wykorzystuje React, TypeScript, Vite, React Router i ikony Lucide. Wymagany jest Node.js 22.12+ z gałęzi 22 lub Node.js 24+.
 
-Z tego katalogu wykonaj:
+Do sprawdzenia zapisu uruchom backend, bazę i Keycloak. Z głównego katalogu repozytorium przygotuj plik `.env` na podstawie `.env.example` (jeśli jeszcze go nie masz), ustaw lokalne hasła, a następnie wykonaj:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+W drugim terminalu, z głównego katalogu repozytorium:
 
 ```bash
 cd frontend
@@ -21,23 +27,41 @@ Wszystkie poniższe polecenia wykonuj w katalogu `frontend`.
 | `npm run typecheck` | Sprawdza typy TypeScript bez generowania plików. |
 | `npm run build` | Sprawdza typy i tworzy wersję produkcyjną w `dist/`. |
 | `npm run preview` | Uruchamia lokalny podgląd wcześniej zbudowanej wersji. |
+| `npm test` | Sprawdza walidację formularza, format danych i warunki dostępności edycji. |
 
-Przy ręcznej weryfikacji sprawdź etykiety oraz statusy trzech kart, aktualizację komunikatu po kliknięciu „Wybierz” i układ na szerokim oraz wąskim ekranie. Projekt nie zawiera obecnie automatycznego zestawu testów komponentów.
+Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backend/README.md#konto-demonstracyjne), dodaj zgłoszenie i otwórz jego szczegóły z listy. Sprawdź podpowiedzi po wysłaniu pustego formularza, a następnie edytuj zapisane zgłoszenie. Otwórz edycję w dwóch kartach: po zapisie w pierwszej starszy zapis w drugiej powinien zostać odrzucony, a wpisane wartości powinny pozostać w formularzu.
+
+## Widoki i zapis
+
+| Adres | Działanie |
+| --- | --- |
+| `/` | Lista i filtry ogłoszeń. Przykładowe karty mogą pojawić się przy pustych wynikach i nie mają adresów w API. |
+| `/ogloszenia/:id` | Publiczny odczyt szczegółów. Przycisk „Edytuj zgłoszenie” widzi autor aktywnego zgłoszenia. |
+| `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
+| `/ogloszenia/:id/edytuj` | Edycja aktywnego zgłoszenia przez autora. Typ zgłoszenia pozostaje bez zmian. |
+
+Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wymagają nazwy, kategorii, opisu, daty i lokalizacji ze współrzędnymi; kolor jest opcjonalny. Data nie może być przyszła według strefy `Europe/Warsaw`. Dokładne współrzędne są pobierane przy edycji tylko dla autora.
+
+Po zapisie aplikacja przechodzi do szczegółów i potwierdza powodzenie. Brak zgłoszenia ma własny widok, a błędy zapisu pozostawiają dane w formularzu. Edycja przekazuje numer wersji otrzymany z API; przy konflikcie `409` trzeba wrócić do szczegółów i pobrać aktualne dane. [Format żądań dodawania i edycji](../foundly-backend/README.md#dodanie-i-edycja).
 
 ## Struktura źródeł
 
 ```text
 src/
 ├── components/
-│   └── ReportCard/
-│       ├── ReportCard.tsx   # Komponent karty ogłoszenia
-│       └── ReportCard.css   # Style karty
+│   ├── AccountSession/      # Logowanie, rejestracja i profil
+│   ├── ReportCard/          # Karta ogłoszenia
+│   ├── ReportForm/          # Wspólny formularz dodawania i edycji
+│   └── ReportPage/          # Ramka widoków i komunikaty pobierania
 ├── demo/
 │   └── reports.ts           # Trzy przykładowe ogłoszenia
-├── types/
-│   └── report.ts            # Typ danych Report
-├── App.tsx                 # Strona demonstracyjna i obsługa wyboru karty
-├── index.css               # Układ i style strony demonstracyjnej
+├── hooks/                   # Pobieranie szczegółów, ponawianie i anulowanie żądań
+├── pages/                   # Lista, szczegóły, dodawanie i edycja
+├── services/                # Wywołania API i sesja Keycloak
+├── types/                   # Typy ogłoszeń i danych wysyłanych do API
+├── utils/reportForm.ts      # Walidacja i mapowanie danych formularza
+├── App.tsx                  # Trasy i wspólny pasek konta
+├── index.css                # Układ i style listy ogłoszeń
 └── main.tsx                # Punkt wejścia aplikacji React
 ```
 
@@ -69,6 +93,7 @@ export function Example() {
 | --- | --- | --- | --- |
 | `report` | `Report` | Tak | Dane wyświetlanego ogłoszenia. |
 | `onSelect` | `(report: Report) => void` | Nie | Funkcja wywoływana po wyborze karty. Jej przekazanie wyświetla przycisk „Wybierz”. |
+| `detailsTo` | `string` | Nie | Adres szczegółów. W kontekście routera wyświetla link „Zobacz szczegóły” zamiast przycisku „Wybierz”. |
 
 Przykład obsługi wyboru:
 
@@ -85,12 +110,6 @@ Typ `lost` oznacza zgubienie, a `found` — znalezienie przedmiotu. `recovered: 
 
 Obsługiwane kategorie to: Elektronika, Klucze, Portfele i dokumenty, Torby i plecaki, Biżuteria oraz Inne. Dla nieznanej kategorii używana jest ikona paczki. Pola `color` i `owner` zachowano w modelu na potrzeby rozbudowy; nie zmieniają obecnie wyglądu karty.
 
-## Aktualne ograniczenia i dalsza praca
-
-Podgląd korzysta wyłącznie z lokalnych danych demonstracyjnych. Wybranie karty aktualizuje komunikat na stronie; nie otwiera jeszcze widoku szczegółów ani nie zapisuje wyboru po odświeżeniu.
-
-Kolejne etapy obejmują nagłówek i nawigację, listę ogłoszeń z wyszukiwaniem i filtrami, formularze oraz widok szczegółów. Logowanie i profil korzystają już z Keycloak oraz backendu. Pobieranie i zapis zgłoszeń z interfejsu wymagają osobnej integracji. Dane przykładowe nie potwierdzają działania tych funkcji.
-
 ## Logowanie i profil
 
 Przycisk **Utwórz konto** obok **Zaloguj się** otwiera formularz rejestracji Keycloak przez `keycloak.register()`. Formularze mają [motyw Foundly](../docker/keycloak/themes/foundly/README.md), domyślnie po polsku, z możliwością zmiany na angielski. Po utworzeniu konta użytkownik wraca na stronę aplikacji; synchronizacja profilu działa tak samo jak po logowaniu. Motyw i rejestrację dla nowego lub istniejącego realmu ustawia `docker compose up -d keycloak-init` z głównego katalogu projektu.
@@ -101,6 +120,6 @@ Adapter `keycloak-js` używa Authorization Code z PKCE S256 i zakresów `openid 
 
 Domyślne adresy to backend `http://localhost:8080` i Keycloak `http://localhost:8081`, realm `foundly`. Można je zmienić w lokalnym pliku `.env.local` na podstawie [.env.example](.env.example): `VITE_API_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`. Przy zmianie origin frontendu trzeba również zmienić callback i Web Origins klienta w Keycloak oraz CORS backendu. `npm run preview` używa innego portu, którego domyślna konfiguracja logowania nie obejmuje.
 
-Implementacja sesji jest w `src/services/auth.ts`, a widok konta w `src/components/AccountSession/`. Karty nadal używają lokalnych danych demonstracyjnych.
+Implementacja sesji jest w `src/services/auth.ts`, a widok konta w `src/components/AccountSession/`. Formularze używają tej samej sesji do pobrania aktualnego tokenu przed zapisem.
 
 Automatyczne testy synchronizacji sesji zostaną dodane w osobnym sprincie.
