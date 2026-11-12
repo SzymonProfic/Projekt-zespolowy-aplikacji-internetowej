@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAccessToken, getAuthSnapshot, login, subscribeAuth } from '../../services/auth';
 import { createReport, getCategories, ReportRequestError, updateReport } from '../../services/reports';
-import type { Category } from '../../types/report';
+import type { Category, ReportLocationPoint } from '../../types/report';
 import { todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
+import { ReportLocationPicker } from './ReportLocationPicker';
 import './ReportForm.css';
 
 const emptyValues: ReportFormValues = {
@@ -14,8 +15,7 @@ const emptyValues: ReportFormValues = {
   color: '',
   eventDate: '',
   locationLabel: '',
-  latitude: '',
-  longitude: '',
+  locationPoint: null,
 };
 
 type CategoriesState = { status: 'loading' } | { status: 'ready'; items: Category[] } | { status: 'error' };
@@ -75,6 +75,11 @@ export function ReportForm({ editing }: ReportFormProps) {
 
   useEffect(() => () => activeSave.current?.abort(), []);
 
+  const selectLocation = useCallback((locationPoint: ReportLocationPoint) => {
+    setValues((previous) => ({ ...previous, locationPoint }));
+    setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+  }, []);
+
   const fieldId = (name: ReportFormField) => `${formId}-${name}`;
 
   function fieldProps(name: ReportFormField) {
@@ -86,7 +91,12 @@ export function ReportForm({ editing }: ReportFormProps) {
       'aria-describedby': errors[name] ? `${fieldId(name)}-error` : undefined,
       onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const value = event.target.value;
-        setValues((previous) => ({ ...previous, [name]: value }));
+        setValues((previous) => ({
+          ...previous,
+          [name]: value,
+          locationPoint: name === 'locationLabel' && previous.locationLabel.trim() !== value.trim()
+            ? null : previous.locationPoint,
+        }));
         if (errors[name]) setErrors((previous) => ({ ...previous, [name]: undefined }));
       },
     };
@@ -218,18 +228,13 @@ export function ReportForm({ editing }: ReportFormProps) {
             </Field>
           </div>
 
-          <fieldset className="report-form__location">
-            <legend>Współrzędne miejsca zdarzenia</legend>
-            <p className="report-page__muted">Pomagają znaleźć zgłoszenie w okolicy. Dokładne współrzędne widzi tylko autor.</p>
-            <div className="report-form__grid">
-              <Field id={fieldId('latitude')} label="Szerokość geograficzna" required error={errors.latitude}>
-                <input {...fieldProps('latitude')} inputMode="decimal" required placeholder="np. 52,2297" />
-              </Field>
-              <Field id={fieldId('longitude')} label="Długość geograficzna" required error={errors.longitude}>
-                <input {...fieldProps('longitude')} inputMode="decimal" required placeholder="np. 21,0122" />
-              </Field>
-            </div>
-          </fieldset>
+          <ReportLocationPicker
+            key={values.locationLabel.trim()}
+            address={values.locationLabel.trim()}
+            point={values.locationPoint}
+            onPick={selectLocation}
+            disabled={saving || !session.signedIn}
+          />
         </fieldset>
 
         {Object.values(errors).some(Boolean) && (

@@ -24,6 +24,8 @@ export interface ReportLocation {
   latitude: number;
 }
 
+export type ReportLocationPoint = Pick<ReportLocation, 'latitude' | 'longitude'>;
+
 export interface ReportDetails extends Report {
   categoryCode: string;
   owner: boolean;

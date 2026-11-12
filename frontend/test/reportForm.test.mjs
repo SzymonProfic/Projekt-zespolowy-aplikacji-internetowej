@@ -12,11 +12,10 @@ const validValues = {
   color: ' ',
   eventDate: '2026-11-10',
   locationLabel: ' Warszawa, Śródmieście ',
-  latitude: '0',
-  longitude: '21,0122',
+  locationPoint: { latitude: 0, longitude: 21.0122 },
 };
 
-test('przygotowuje dane dla API, przyjmując współrzędną zero i przecinek dziesiętny', () => {
+test('przygotowuje etykietę i punkt wybrany na mapie, także dla współrzędnej zero', () => {
   const result = validateReportForm(validValues, today, categories);
   assert.equal(result.ok, true);
   assert.deepEqual(result.content, {
@@ -29,23 +28,31 @@ test('przygotowuje dane dla API, przyjmując współrzędną zero i przecinek dz
   });
 });
 
-test('zgłasza brak wymaganych pól i nie zamienia pustych współrzędnych na zero', () => {
+test('zgłasza brak wymaganych pól', () => {
   const result = validateReportForm({
     ...validValues, title: ' ', description: '', categoryCode: '', eventDate: '',
-    locationLabel: '', latitude: ' ', longitude: '',
+    locationLabel: '', locationPoint: null,
   }, today, categories);
   assert.equal(result.ok, false);
   assert.deepEqual(Object.keys(result.errors).sort(), [
-    'categoryCode', 'description', 'eventDate', 'latitude', 'locationLabel', 'longitude', 'title',
+    'categoryCode', 'description', 'eventDate', 'locationLabel', 'title',
   ]);
 });
 
-test('odrzuca kategorie spoza API oraz współrzędne poza zakresem', () => {
+test('odrzuca kategorie spoza API oraz nieprawidłowy punkt na mapie', () => {
   const result = validateReportForm({
-    ...validValues, categoryCode: 'INACTIVE', latitude: '90.001', longitude: '-180.001',
+    ...validValues, categoryCode: 'INACTIVE', locationPoint: { latitude: 90.001, longitude: -180.001 },
   }, today, categories);
   assert.equal(result.ok, false);
-  assert.deepEqual(Object.keys(result.errors).sort(), ['categoryCode', 'latitude', 'longitude']);
+  assert.deepEqual(Object.keys(result.errors).sort(), ['categoryCode', 'locationLabel']);
+});
+
+test('wymaga wyboru pinezki po podaniu nazwy miejsca', () => {
+  const result = validateReportForm({ ...validValues, locationPoint: null }, today, categories);
+  assert.deepEqual(result, {
+    ok: false,
+    errors: { locationLabel: 'Zaznacz miejsce zdarzenia na mapie.' },
+  });
 });
 
 test('odrzuca daty z przyszłości oraz nieistniejące dni kalendarza', () => {
@@ -85,6 +92,5 @@ test('udostępnia edycję tylko dla aktywnego zgłoszenia autora z danymi lokali
   const fields = reportToFormValues(report);
   assert.equal(fields.eventDate, '2026-11-10');
   assert.equal(fields.locationLabel, 'Warszawa, Śródmieście');
-  assert.equal(fields.latitude, '52.2297');
-  assert.equal(fields.longitude, '21.0122');
+  assert.deepEqual(fields.locationPoint, { latitude: 52.2297, longitude: 21.0122 });
 });

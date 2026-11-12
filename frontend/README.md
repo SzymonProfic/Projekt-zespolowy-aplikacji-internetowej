@@ -40,7 +40,13 @@ Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backe
 | `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
 | `/ogloszenia/:id/edytuj` | Edycja aktywnego zgłoszenia przez autora. Typ zgłoszenia pozostaje bez zmian. |
 
-Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wymagają nazwy, kategorii, opisu, daty i lokalizacji ze współrzędnymi; kolor jest opcjonalny. Data nie może być przyszła według strefy `Europe/Warsaw`. Dokładne współrzędne są pobierane przy edycji tylko dla autora.
+Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wymagają nazwy, kategorii, opisu, daty i miejsca zdarzenia. Kolor jest opcjonalny. Data nie może być przyszła według strefy `Europe/Warsaw`. Filtr „Lokalizacja” na liście wyszukuje fragment zapisanej nazwy miejsca.
+
+### Miejsce zdarzenia
+
+Wpisz miasto, dzielnicę lub ulicę, kliknij **Pokaż na mapie** i ustaw pinezkę. Wynik wyszukiwania ustawia widok mapy. Do API trafia wpisana nazwa oraz punkt wskazany przez użytkownika. Przy edycji zmiana nazwy miejsca wymaga wybrania nowej pinezki. Edycja pozostałych pól zachowuje zapisany punkt.
+
+Do uruchomienia mapy włącz **Maps JavaScript API** i **Geocoding API** w projekcie Google Cloud z aktywnymi rozliczeniami. W katalogu `frontend` utwórz lokalny plik `.env.local` i ustaw `VITE_GOOGLE_MAPS_API_KEY`. Klucz przeglądarkowy ogranicz do domen frontendu, np. `http://localhost:5173/*`, oraz używanych usług. Po zmianie pliku uruchom ponownie Vite. `VITE_GOOGLE_MAPS_MAP_ID` pozwala podać własny identyfikator mapy. Podgląd lokalny domyślnie używa `DEMO_MAP_ID`. [Konfiguracja klucza Google Maps](https://developers.google.com/maps/documentation/javascript/get-api-key).
 
 Po zapisie aplikacja przechodzi do szczegółów i potwierdza powodzenie. Brak zgłoszenia ma własny widok, a błędy zapisu pozostawiają dane w formularzu. Edycja przekazuje numer wersji otrzymany z API; przy konflikcie `409` trzeba wrócić do szczegółów i pobrać aktualne dane. [Format żądań dodawania i edycji](../foundly-backend/README.md#dodanie-i-edycja).
 

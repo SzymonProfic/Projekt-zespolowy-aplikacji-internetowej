@@ -1,4 +1,4 @@
-import type { Report, ReportContent, ReportDetails, ReportLocation } from '../types/report';
+import type { Report, ReportContent, ReportDetails, ReportLocation, ReportLocationPoint } from '../types/report';
 
 export interface ReportFormValues {
   type: Report['type'];
@@ -8,11 +8,10 @@ export interface ReportFormValues {
   color: string;
   eventDate: string;
   locationLabel: string;
-  latitude: string;
-  longitude: string;
+  locationPoint: ReportLocationPoint | null;
 }
 
-export type ReportFormField = Exclude<keyof ReportFormValues, 'type'>;
+export type ReportFormField = Exclude<keyof ReportFormValues, 'type' | 'locationPoint'>;
 export type ReportFormErrors = Partial<Record<ReportFormField, string>>;
 
 type EditableReport = ReportDetails & { editableLocation: ReportLocation };
@@ -31,8 +30,7 @@ export function reportToFormValues(report: EditableReport): ReportFormValues {
     color: report.color,
     eventDate: report.date,
     locationLabel: label,
-    latitude: String(latitude),
-    longitude: String(longitude),
+    locationPoint: { latitude, longitude },
   };
 }
 
@@ -48,11 +46,6 @@ export function todayInWarsaw(now = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function parseCoordinate(input: string) {
-  const value = input.trim().replace(',', '.');
-  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value) ? Number(value) : NaN;
-}
-
 function isCalendarDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
@@ -65,21 +58,24 @@ export function validateReportForm(values: ReportFormValues, today: string, cate
   const description = values.description.trim();
   const color = values.color.trim();
   const label = values.locationLabel.trim();
-  const latitude = parseCoordinate(values.latitude);
-  const longitude = parseCoordinate(values.longitude);
+  const point = values.locationPoint;
   const errors: ReportFormErrors = {};
 
   if (title.length < 3 || title.length > 150) errors.title = 'Podaj nazwę przedmiotu (od 3 do 150 znaków).';
   if (!categoryCodes.includes(values.categoryCode)) errors.categoryCode = 'Wybierz dostępną kategorię.';
   if (color.length > 80) errors.color = 'Kolor może mieć maksymalnie 80 znaków.';
   if (description.length < 10 || description.length > 5000) errors.description = 'Podaj opis (od 10 do 5000 znaków).';
-  if (label.length < 3 || label.length > 255) errors.locationLabel = 'Podaj miejsce zdarzenia (od 3 do 255 znaków).';
   if (!isCalendarDate(values.eventDate)) errors.eventDate = 'Podaj poprawną datę zdarzenia.';
   else if (values.eventDate > today) errors.eventDate = 'Data zdarzenia nie może być w przyszłości.';
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) errors.latitude = 'Podaj szerokość od −90 do 90.';
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) errors.longitude = 'Podaj długość od −180 do 180.';
 
-  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  if (label.length < 3 || label.length > 255) {
+    errors.locationLabel = 'Podaj miejsce zdarzenia (od 3 do 255 znaków).';
+  } else if (!point || !Number.isFinite(point.latitude) || Math.abs(point.latitude) > 90
+    || !Number.isFinite(point.longitude) || Math.abs(point.longitude) > 180) {
+    errors.locationLabel = 'Zaznacz miejsce zdarzenia na mapie.';
+  }
+
+  if (Object.keys(errors).length > 0 || !point) return { ok: false, errors };
 
   return {
     ok: true,
@@ -89,7 +85,7 @@ export function validateReportForm(values: ReportFormValues, today: string, cate
       description,
       color: color || null,
       eventDate: values.eventDate,
-      location: { label, latitude, longitude },
+      location: { label, ...point },
     },
   };
 }
