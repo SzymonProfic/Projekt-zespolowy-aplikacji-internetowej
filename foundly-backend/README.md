@@ -1,6 +1,6 @@
 # Foundly — REST API
 
-Backend Java 21 / Spring Boot 4.1, PostgreSQL 18 + PostGIS, migracje Flyway i uwierzytelnianie Keycloak. Model domeny opisuje [model.md](model.md). API nie korzysta już z H2.
+Backend Java 21 / Spring Boot 4.1, PostgreSQL 18 + PostGIS + pgvector, migracje Flyway i uwierzytelnianie Keycloak. Model domeny opisuje [model.md](model.md). API nie korzysta już z H2.
 
 ## Uruchomienie lokalne
 
@@ -9,7 +9,7 @@ Z głównego katalogu repozytorium:
 ```bash
 cp .env.example .env
 # Ustaw własne hasła w .env przed pierwszym uruchomieniem.
-docker compose up -d db keycloak-init
+docker compose up -d --build db keycloak-init
 ```
 
 Keycloak jest dostępny pod `http://localhost:8081`. Przy pierwszym uruchomieniu importuje realm `foundly` z [konfiguracji](../docker/keycloak/foundly-realm.json). Administrator loguje się danymi `KEYCLOAK_ADMIN_USERNAME` / `KEYCLOAK_ADMIN_PASSWORD` z `.env`. W realmie `foundly` jest importowane konto demonstracyjne opisane poniżej. Można też zarejestrować dodatkowych użytkowników lub utworzyć ich w konsoli administratora. Import nie nadpisuje istniejącego realmu przy restartach.
@@ -24,7 +24,7 @@ cd foundly-backend
 ./mvnw spring-boot:run
 ```
 
-Backend: `http://localhost:8080`. Migracje tworzą tabele, ograniczenia, słownik sześciu kategorii i indeksy PostGIS. Domyślnie baza działa na porcie 5432; po zmianie `POSTGRES_PORT` ustaw także `DATABASE_URL=jdbc:postgresql://localhost:<port>/foundly` (z właściwą nazwą bazy).
+Backend: `http://localhost:8080`. Migracje tworzą tabele, ograniczenia, słownik dwunastu kategorii i indeksy PostGIS. Domyślnie baza działa na porcie 5432; po zmianie `POSTGRES_PORT` ustaw także `DATABASE_URL=jdbc:postgresql://localhost:<port>/foundly` (z właściwą nazwą bazy).
 
 Alternatywnie uruchom backend w kontenerze:
 
@@ -33,6 +33,15 @@ docker compose --profile app up -d --build
 ```
 
 Compose wykorzystuje osobne bazy i wolumeny dla Foundly i Keycloak. Nowy `postgis_data` nie montuje ani nie usuwa starego `postgres_data` ze wcześniejszego szablonu. Przeniesienie dawnych danych wymaga jawnego eksportu/importu. Obraz PostGIS działa jako `linux/amd64`, na Apple Silicon przez emulację, zgodnie z [obsługiwanymi architekturami obrazu](https://github.com/postgis/docker-postgis). Konfiguracja Keycloak `start-dev` i lokalny HTTP służą pracy deweloperskiej.
+
+Usługa `db` buduje [własny obraz](../docker/postgres/Dockerfile) na bazie PostGIS,
+z pakietem `postgresql-18-pgvector` zgodnie z [instrukcją pgvector](https://github.com/pgvector/pgvector#apt).
+Migracja Flyway `V4__enable_pgvector.sql` włącza rozszerzenie `vector` w bazie Foundly
+przy starcie backendu, również dla istniejącej bazy. Po aktualizacji obrazu wykonaj
+`docker compose up -d --build --wait db` i uruchom ponownie backend.
+Dotychczasowy wolumen `postgis_data` jest zachowany. Rozszerzenia nie są dodawane
+do osobnej bazy Keycloak. Samo włączenie pgvector nie dodaje jeszcze kolumn
+embeddingów ani wyszukiwania semantycznego.
 
 ## Konto demonstracyjne
 
@@ -243,4 +252,4 @@ cd foundly-backend
 ./mvnw package
 ```
 
-Testy integracyjne uruchamiają tymczasowy PostgreSQL/PostGIS przez Testcontainers, wykonują migracje i sprawdzają API przez MockMvc. Obejmują CRUD, dostęp, walidację, geografię, OpenAPI i współbieżne tworzenie profili. Dekoder JWT jest zastąpiony w testach API; osobne testy rzeczywistego dekodera z lokalnym JWKS sprawdzają podpisy, czas, wystawcę, audience i rodzaj tokenu. Testy integracyjne są pomijane przy braku Dockera — sprawdź liczbę `Skipped` w wyniku. Do pełnej weryfikacji potrzebny jest działający Docker.
+Testy integracyjne uruchamiają tymczasowy PostgreSQL/PostGIS/pgvector przez Testcontainers, budując obraz z `docker/postgres/Dockerfile`, wykonują migracje i sprawdzają API przez MockMvc. Obejmują CRUD, dostęp, walidację, geografię, OpenAPI i współbieżne tworzenie profili. Dekoder JWT jest zastąpiony w testach API; osobne testy rzeczywistego dekodera z lokalnym JWKS sprawdzają podpisy, czas, wystawcę, audience i rodzaj tokenu. Testy integracyjne są pomijane przy braku Dockera — sprawdź liczbę `Skipped` w wyniku. Do pełnej weryfikacji potrzebny jest działający Docker.

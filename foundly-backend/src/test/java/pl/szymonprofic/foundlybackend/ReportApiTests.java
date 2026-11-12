@@ -15,7 +15,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.images.builder.ImageFromDockerfile;
 import tools.jackson.databind.*;
+import java.nio.file.Path;
 import java.time.*;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
@@ -31,6 +33,11 @@ class ReportApiTests {
     static PostgreSQLContainer postgres = new PostgreSQLContainer(
             DockerImageName.parse("postgis/postgis:18-3.6").asCompatibleSubstituteFor("postgres"))
             .withCreateContainerCmdModifier(cmd -> cmd.withPlatform("linux/amd64"));
+    static {
+        postgres.setImage(new ImageFromDockerfile()
+                .withDockerfile(Path.of("..", "docker", "postgres", "Dockerfile"))
+                .withBuildImageCmdModifier(cmd -> cmd.withPlatform("linux/amd64")));
+    }
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -52,8 +59,18 @@ class ReportApiTests {
     }
 
     @Test
+    void spatialAndVectorExtensionsAreEnabled() {
+        assertThat(jdbc.queryForList(
+                "SELECT extname FROM pg_extension WHERE extname IN ('postgis', 'vector')", String.class))
+                .containsExactlyInAnyOrder("postgis", "vector");
+        assertThat(jdbc.queryForObject(
+                "SELECT '[1,0,0]'::vector <=> '[0,1,0]'::vector", Double.class))
+                .isEqualTo(1.0);
+    }
+
+    @Test
     void publicReadsAndProtectedOperations() throws Exception {
-        mvc.perform(get("/api/categories")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(6));
+        mvc.perform(get("/api/categories")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(12));
         mvc.perform(get("/api/reports")).andExpect(status().isOk());
         mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
         mvc.perform(put("/api/me")).andExpect(status().isUnauthorized());
@@ -274,7 +291,7 @@ class ReportApiTests {
         request(delete(path).param("version", resolved.path("version").asText()), "alice", 204);
         request(get(path), null, 404);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM app_user", Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM category", Integer.class)).isEqualTo(6);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM category", Integer.class)).isEqualTo(12);
     }
 
     @Test

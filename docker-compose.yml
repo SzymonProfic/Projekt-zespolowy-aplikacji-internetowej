@@ -1,7 +1,7 @@
-# Środowisko lokalne: PostGIS + Keycloak. Backend kontenerowy: --profile app.
+# Środowisko lokalne: PostGIS + Keycloak + embedding-service. Backend kontenerowy: --profile app.
 services:
   db:
-    image: postgis/postgis:18-3.6
+    build: ./docker/postgres
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-foundly}
@@ -70,6 +70,21 @@ services:
       keycloak:
         condition: service_started
 
+  embedding-service:
+    build: ./embedding-service
+    init: true
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - embedding_model_cache:/home/app/.cache/huggingface
+    healthcheck:
+      # Serwer otwiera port dopiero po pobraniu i załadowaniu modelu.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10m
+      retries: 5
+
   backend:
     profiles: ["app"]
     build: ./foundly-backend
@@ -92,3 +107,4 @@ volumes:
   # Nowy wolumen PostGIS; poprzedni postgres_data pozostaje na dysku bez zmian.
   postgis_data:
   keycloak_data:
+  embedding_model_cache:
