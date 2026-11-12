@@ -34,14 +34,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .filters__heading h2, .results__heading h2 { margin: 0; font-size: 18px; }
 .filters__heading p { margin: 5px 0 0; color: #718078; font-size: 13px; }
 .filters__clear { padding: 8px 10px; border: 0; background: transparent; color: #176f60; font-size: 13px; font-weight: 600; cursor: pointer; }
-.filters__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.filters__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
 .filter-field { display: grid; min-width: 0; gap: 7px; color: #40544e; font-size: 12px; font-weight: 600; }
 .filter-field input, .filter-field select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #dce3da; border-radius: 7px; background: #fff; color: #253c39; font-size: 13px; font-weight: 400; }
 .filter-field input::placeholder { color: #9aa59b; }
-.location-filters { margin: 22px 0 0; padding: 0; border: 0; }
-.location-filters legend { padding: 0; color: #40544e; font-size: 13px; font-weight: 700; }
-.location-filters > p { margin: 5px 0 0; color: #718078; font-size: 12px; line-height: 1.5; }
-.filters__grid--location { margin-top: 12px; }
 .filters__actions { justify-content: flex-end; margin-top: 12px; }
 .filters__actions > span { color: #718078; font-size: 12px; }
 .filters__submit { min-height: 40px; padding: 9px 16px; border: 0; border-radius: 7px; background: #176f60; color: #fff; font-size: 13px; font-weight: 650; cursor: pointer; }
@@ -58,7 +54,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .pagination button { min-height: 38px; padding: 8px 12px; border: 1px solid #dce5d7; border-radius: 6px; background: #fff; color: #176f60; cursor: pointer; }
 .pagination button:disabled { color: #9aa59b; cursor: default; }
 
-@media (max-width: 800px) { .results__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 800px) {
+  .filters__grid, .results__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 600px) {
   .foundly-page { padding: 18px 18px 40px; }
   .foundly-topbar { align-items: flex-start; }
@@ -68,7 +66,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .filters__summary { min-height: 60px; padding: 0 16px; font-size: 16px; }
   .filters__content { padding: 0 16px 4px; }
   .filters__grid { grid-template-columns: 1fr; gap: 13px; margin-top: 16px; }
-  .filters__grid--location { margin-top: 12px; }
   .filters__actions { justify-content: flex-end; }
   .filters__submit { width: auto; }
   .results__grid { grid-template-columns: 1fr; gap: 16px; }

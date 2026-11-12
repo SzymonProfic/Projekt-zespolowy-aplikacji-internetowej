@@ -54,9 +54,7 @@ export interface ReportFilters {
   type: '' | 'lost' | 'found';
   status: 'ACTIVE' | 'RESOLVED' | 'ALL';
   categoryCode: string;
-  latitude: string;
-  longitude: string;
-  radiusKm: string;
+  location: string;
 }
 
 interface ReportPage {
@@ -77,11 +75,7 @@ export async function getReports(filters: ReportFilters, page: number): Promise<
   const params = new URLSearchParams({ page: String(page), size: '12', status: filters.status });
   if (filters.type) params.set('type', filters.type);
   if (filters.categoryCode) params.set('categoryCode', filters.categoryCode);
-  if (filters.latitude && filters.longitude && filters.radiusKm) {
-    params.set('latitude', filters.latitude);
-    params.set('longitude', filters.longitude);
-    params.set('radiusMeters', String(Number(filters.radiusKm) * 1000));
-  }
+  if (filters.location) params.set('location', filters.location);
   const response = await fetch(`${apiUrl}/api/reports?${params.toString()}`, { cache: 'no-store' });
   if (!response.ok) throw new Error('Reports unavailable');
   return response.json() as Promise<ReportPage>;

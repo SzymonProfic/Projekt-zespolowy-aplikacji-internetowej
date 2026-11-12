@@ -6,7 +6,7 @@ import { demoReports } from '../demo/reports';
 import { getCategories, getReports, type ReportFilters } from '../services/reports';
 import type { Category, Report } from '../types/report';
 
-const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', latitude: '', longitude: '', radiusKm: '' };
+const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', location: '' };
 
 export function ReportListPage() {
   const [filters, setFilters] = useState<ReportFilters>(emptyFilters);
@@ -19,7 +19,7 @@ export function ReportListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const displayedReports = reports.length === 0 && totalElements === 0 && !appliedFilters.latitude && !appliedFilters.longitude && !appliedFilters.radiusKm
+  const displayedReports = reports.length === 0 && totalElements === 0 && !appliedFilters.location
     ? demoReports.filter((report) => {
       const statusMatches = appliedFilters.status === 'ALL' || (appliedFilters.status === 'RESOLVED' ? report.recovered : !report.recovered);
       const typeMatches = !appliedFilters.type || report.type === appliedFilters.type;
@@ -55,23 +55,9 @@ export function ReportListPage() {
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = { ...filters };
-    if (next.latitude || next.longitude || next.radiusKm) {
-      if (!next.latitude || !next.longitude || !next.radiusKm) {
-        setError('Aby filtrować po lokalizacji, podaj szerokość, długość geograficzną i promień.');
-        return;
-      }
-      const latitude = Number(next.latitude);
-      const longitude = Number(next.longitude);
-      const radius = Number(next.radiusKm);
-      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180 || !Number.isFinite(radius) || radius < 0.001 || radius > 100) {
-        setError('Sprawdź współrzędne i promień. Szerokość: −90–90, długość: −180–180, promień: 0,001–100 km.');
-        return;
-      }
-    }
     setError('');
     setPage(0);
-    setAppliedFilters(next);
+    setAppliedFilters({ ...filters, location: filters.location.trim() });
   }
 
   function clearFilters() {
@@ -101,12 +87,12 @@ export function ReportListPage() {
           <label className="filter-field"><span>Rodzaj zgłoszenia</span><select value={filters.type} onChange={(event) => changeFilter('type', event.target.value as ReportFilters['type'])}><option value="">Wszystkie</option><option value="lost">Zgubione</option><option value="found">Znalezione</option></select></label>
           <label className="filter-field"><span>Status</span><select value={filters.status} onChange={(event) => changeFilter('status', event.target.value as ReportFilters['status'])}><option value="ACTIVE">Aktywne</option><option value="RESOLVED">Zakończone</option><option value="ALL">Wszystkie</option></select></label>
           <label className="filter-field"><span>Kategoria</span><select value={filters.categoryCode} onChange={(event) => changeFilter('categoryCode', event.target.value)}><option value="">Wszystkie kategorie</option>{categories.map((category) => <option key={category.code} value={category.code}>{category.name}</option>)}</select></label>
+          <label className="filter-field">
+            <span>Lokalizacja</span>
+            <input value={filters.location} maxLength={255} placeholder="np. Warszawa, Mokotów"
+              onChange={(event) => changeFilter('location', event.target.value)} />
+          </label>
           </div>
-          <fieldset className="location-filters"><legend>Lokalizacja</legend><div className="filters__grid filters__grid--location">
-          <label className="filter-field"><span>Szerokość geograficzna</span><input inputMode="decimal" type="number" min="-90" max="90" step="any" placeholder="np. 52.2297" value={filters.latitude} onChange={(event) => changeFilter('latitude', event.target.value)} /></label>
-          <label className="filter-field"><span>Długość geograficzna</span><input inputMode="decimal" type="number" min="-180" max="180" step="any" placeholder="np. 21.0122" value={filters.longitude} onChange={(event) => changeFilter('longitude', event.target.value)} /></label>
-          <label className="filter-field"><span>Promień (km)</span><input inputMode="decimal" type="number" min="0.001" max="100" step="any" placeholder="np. 5" value={filters.radiusKm} onChange={(event) => changeFilter('radiusKm', event.target.value)} /></label>
-          </div></fieldset>
           </div>
         </details>
         <div className="filters__actions"><button className="filters__submit" type="submit">Pokaż ogłoszenia</button></div>
