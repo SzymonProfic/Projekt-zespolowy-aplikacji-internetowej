@@ -8,7 +8,7 @@
     "strict": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "node", "google.maps"],
+    "types": ["vite/client", "node"],
     "isolatedModules": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

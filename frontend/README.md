@@ -44,9 +44,9 @@ Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wy
 
 ### Miejsce zdarzenia
 
-Wpisz miasto, dzielnicę lub ulicę, kliknij **Pokaż na mapie** i ustaw pinezkę. Wynik wyszukiwania ustawia widok mapy. Do API trafia wpisana nazwa oraz punkt wskazany przez użytkownika. Przy edycji zmiana nazwy miejsca wymaga wybrania nowej pinezki. Edycja pozostałych pól zachowuje zapisany punkt.
+Wpisz nazwę miasta, np. **Częstochowa**. Po przecinku możesz dopisać dzielnicę lub ulicę, np. **Częstochowa, Raków**. Przy powtarzającej się nazwie miasta formularz poprosi o województwo, np. **Olsztyn, śląskie**.
 
-Do uruchomienia mapy włącz **Maps JavaScript API** i **Geocoding API** w projekcie Google Cloud z aktywnymi rozliczeniami. W katalogu `frontend` utwórz lokalny plik `.env.local` i ustaw `VITE_GOOGLE_MAPS_API_KEY`. Klucz przeglądarkowy ogranicz do domen frontendu, np. `http://localhost:5173/*`, oraz używanych usług. Po zmianie pliku uruchom ponownie Vite. `VITE_GOOGLE_MAPS_MAP_ID` pozwala podać własny identyfikator mapy. Podgląd lokalny domyślnie używa `DEMO_MAP_ID`. [Konfiguracja klucza Google Maps](https://developers.google.com/maps/documentation/javascript/get-api-key).
+Frontend wysyła wpisany tekst oraz orientacyjny punkt miasta z dołączonego wykazu. Wykaz pochodzi z warstwy urzędowych nazw miejscowości według stanu z 12 listopada 2026 r. Edycja pozostałych pól zachowuje dotychczasowy punkt. [Państwowy Rejestr Nazw Geograficznych GUGiK](https://www.geoportal.gov.pl/pl/dane/panstwowy-rejestr-nazw-geograficznych-prng/)
 
 Po zapisie aplikacja przechodzi do szczegółów i potwierdza powodzenie. Brak zgłoszenia ma własny widok, a błędy zapisu pozostawiają dane w formularzu. Edycja przekazuje numer wersji otrzymany z API; przy konflikcie `409` trzeba wrócić do szczegółów i pobrać aktualne dane. [Format żądań dodawania i edycji](../foundly-backend/README.md#dodanie-i-edycja).
 

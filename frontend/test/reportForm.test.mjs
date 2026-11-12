@@ -11,11 +11,12 @@ const validValues = {
   description: ' Znaleziono klucze przy wejściu do parku. ',
   color: ' ',
   eventDate: '2026-11-10',
-  locationLabel: ' Warszawa, Śródmieście ',
-  locationPoint: { latitude: 0, longitude: 21.0122 },
+  locationLabel: ' Częstochowa ',
+  initialLocation: null,
 };
+const czestochowaPoint = { latitude: 50.811932, longitude: 19.127899 };
 
-test('przygotowuje etykietę i punkt wybrany na mapie, także dla współrzędnej zero', () => {
+test('przygotowuje etykietę i orientacyjny punkt Częstochowy z samej nazwy', () => {
   const result = validateReportForm(validValues, today, categories);
   assert.equal(result.ok, true);
   assert.deepEqual(result.content, {
@@ -24,14 +25,21 @@ test('przygotowuje etykietę i punkt wybrany na mapie, także dla współrzędne
     description: 'Znaleziono klucze przy wejściu do parku.',
     color: null,
     eventDate: '2026-11-10',
-    location: { label: 'Warszawa, Śródmieście', latitude: 0, longitude: 21.0122 },
+    location: { label: 'Częstochowa', ...czestochowaPoint },
   });
+});
+
+test('rozpoznaje miasto bez polskich znaków i zachowuje wpisaną dzielnicę', () => {
+  const locationLabel = 'CZESTOCHOWA, Raków';
+  const result = validateReportForm({ ...validValues, locationLabel }, today, categories);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.content.location, { label: locationLabel, ...czestochowaPoint });
 });
 
 test('zgłasza brak wymaganych pól', () => {
   const result = validateReportForm({
     ...validValues, title: ' ', description: '', categoryCode: '', eventDate: '',
-    locationLabel: '', locationPoint: null,
+    locationLabel: '',
   }, today, categories);
   assert.equal(result.ok, false);
   assert.deepEqual(Object.keys(result.errors).sort(), [
@@ -39,20 +47,23 @@ test('zgłasza brak wymaganych pól', () => {
   ]);
 });
 
-test('odrzuca kategorie spoza API oraz nieprawidłowy punkt na mapie', () => {
+test('odrzuca kategorie spoza API i nierozpoznane miasto', () => {
   const result = validateReportForm({
-    ...validValues, categoryCode: 'INACTIVE', locationPoint: { latitude: 90.001, longitude: -180.001 },
+    ...validValues, categoryCode: 'INACTIVE', locationLabel: 'Nieznane miasto',
   }, today, categories);
   assert.equal(result.ok, false);
   assert.deepEqual(Object.keys(result.errors).sort(), ['categoryCode', 'locationLabel']);
 });
 
-test('wymaga wyboru pinezki po podaniu nazwy miejsca', () => {
-  const result = validateReportForm({ ...validValues, locationPoint: null }, today, categories);
-  assert.deepEqual(result, {
-    ok: false,
-    errors: { locationLabel: 'Zaznacz miejsce zdarzenia na mapie.' },
-  });
+test('rozróżnia miasta o tej samej nazwie według województwa', () => {
+  const ambiguous = validateReportForm({ ...validValues, locationLabel: 'Olsztyn' }, today, categories);
+  assert.equal(ambiguous.ok, false);
+  assert.match(ambiguous.errors.locationLabel, /województwo/);
+  const northern = validateReportForm({ ...validValues, locationLabel: 'Olsztyn, warmińsko-mazurskie' }, today, categories);
+  const southern = validateReportForm({ ...validValues, locationLabel: 'Olsztyn, slaskie' }, today, categories);
+  assert.equal(northern.ok, true);
+  assert.equal(southern.ok, true);
+  assert.ok(northern.content.location.latitude > southern.content.location.latitude);
 });
 
 test('odrzuca daty z przyszłości oraz nieistniejące dni kalendarza', () => {
@@ -69,7 +80,7 @@ test('waliduje datę według dnia w Warszawie, również po lokalnej północy',
   assert.equal(validateReportForm({ ...validValues, eventDate: today }, localToday, categories).ok, true);
 });
 
-test('udostępnia edycję tylko dla aktywnego zgłoszenia autora z danymi lokalizacji', () => {
+test('podczas edycji zachowuje zapisany punkt i dobiera nowy po zmianie miejsca', () => {
   const report = {
     id: '6d520dba-43aa-4072-ac2f-18385442272d',
     title: 'Klucze z zielonym brelokiem',
@@ -92,5 +103,7 @@ test('udostępnia edycję tylko dla aktywnego zgłoszenia autora z danymi lokali
   const fields = reportToFormValues(report);
   assert.equal(fields.eventDate, '2026-11-10');
   assert.equal(fields.locationLabel, 'Warszawa, Śródmieście');
-  assert.deepEqual(fields.locationPoint, { latitude: 52.2297, longitude: 21.0122 });
+  assert.deepEqual(validateReportForm(fields, today, categories).content.location, report.editableLocation);
+  const changed = validateReportForm({ ...fields, locationLabel: 'Częstochowa' }, today, categories);
+  assert.deepEqual(changed.content.location, { label: 'Częstochowa', ...czestochowaPoint });
 });

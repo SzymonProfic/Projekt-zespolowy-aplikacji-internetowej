@@ -1,3 +1,4 @@
+import cityPoints from '../data/polishCities.json' with { type: 'json' };
 import type { Report, ReportContent, ReportDetails, ReportLocation, ReportLocationPoint } from '../types/report';
 
 export interface ReportFormValues {
@@ -8,10 +9,10 @@ export interface ReportFormValues {
   color: string;
   eventDate: string;
   locationLabel: string;
-  locationPoint: ReportLocationPoint | null;
+  initialLocation: ReportLocation | null;
 }
 
-export type ReportFormField = Exclude<keyof ReportFormValues, 'type' | 'locationPoint'>;
+export type ReportFormField = Exclude<keyof ReportFormValues, 'type' | 'initialLocation'>;
 export type ReportFormErrors = Partial<Record<ReportFormField, string>>;
 
 type EditableReport = ReportDetails & { editableLocation: ReportLocation };
@@ -21,7 +22,6 @@ export function canEditReport(report: ReportDetails): report is EditableReport {
 }
 
 export function reportToFormValues(report: EditableReport): ReportFormValues {
-  const { label, latitude, longitude } = report.editableLocation;
   return {
     type: report.type,
     title: report.title,
@@ -29,10 +29,26 @@ export function reportToFormValues(report: EditableReport): ReportFormValues {
     description: report.description,
     color: report.color,
     eventDate: report.date,
-    locationLabel: label,
-    locationPoint: { latitude, longitude },
+    locationLabel: report.editableLocation.label,
+    initialLocation: report.editableLocation,
   };
 }
+
+function normalizeCityName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replaceAll('ł', 'l')
+    .replace(/\s+/g, ' ');
+}
+
+type CityInRegion = ReportLocationPoint & { region: string };
+
+const pointsByCity = new Map<string, ReportLocationPoint | CityInRegion[]>(
+  Object.entries(cityPoints).map(([city, point]) => [normalizeCityName(city), point]),
+);
 
 const warsawDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Warsaw',
@@ -58,22 +74,25 @@ export function validateReportForm(values: ReportFormValues, today: string, cate
   const description = values.description.trim();
   const color = values.color.trim();
   const label = values.locationLabel.trim();
-  const point = values.locationPoint;
+  const [name, region] = label.split(',', 2).map(normalizeCityName);
+  const city = pointsByCity.get(name);
+  const cityPoint = Array.isArray(city) ? city.find((entry) => normalizeCityName(entry.region) === region) : city;
+  const point = values.initialLocation?.label.trim() === label ? values.initialLocation : cityPoint;
   const errors: ReportFormErrors = {};
 
   if (title.length < 3 || title.length > 150) errors.title = 'Podaj nazwę przedmiotu (od 3 do 150 znaków).';
   if (!categoryCodes.includes(values.categoryCode)) errors.categoryCode = 'Wybierz dostępną kategorię.';
   if (color.length > 80) errors.color = 'Kolor może mieć maksymalnie 80 znaków.';
   if (description.length < 10 || description.length > 5000) errors.description = 'Podaj opis (od 10 do 5000 znaków).';
-  if (!isCalendarDate(values.eventDate)) errors.eventDate = 'Podaj poprawną datę zdarzenia.';
-  else if (values.eventDate > today) errors.eventDate = 'Data zdarzenia nie może być w przyszłości.';
-
   if (label.length < 3 || label.length > 255) {
     errors.locationLabel = 'Podaj miejsce zdarzenia (od 3 do 255 znaków).';
-  } else if (!point || !Number.isFinite(point.latitude) || Math.abs(point.latitude) > 90
-    || !Number.isFinite(point.longitude) || Math.abs(point.longitude) > 180) {
-    errors.locationLabel = 'Zaznacz miejsce zdarzenia na mapie.';
+  } else if (!point) {
+    errors.locationLabel = Array.isArray(city)
+      ? `Dopisz po przecinku województwo (${city.map((entry) => entry.region).join(' lub ')}).`
+      : 'Podaj nazwę miasta w Polsce, np. Częstochowa. Dzielnicę lub ulicę możesz dopisać po przecinku.';
   }
+  if (!isCalendarDate(values.eventDate)) errors.eventDate = 'Podaj poprawną datę zdarzenia.';
+  else if (values.eventDate > today) errors.eventDate = 'Data zdarzenia nie może być w przyszłości.';
 
   if (Object.keys(errors).length > 0 || !point) return { ok: false, errors };
 
@@ -85,7 +104,7 @@ export function validateReportForm(values: ReportFormValues, today: string, cate
       description,
       color: color || null,
       eventDate: values.eventDate,
-      location: { label, ...point },
+      location: { label, latitude: point.latitude, longitude: point.longitude },
     },
   };
 }

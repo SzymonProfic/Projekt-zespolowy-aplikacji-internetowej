@@ -100,11 +100,6 @@
 .report-form__field [aria-invalid="true"] { border-color: #b34b3e; }
 .report-form__field-error { margin: 0; color: #96372d; font-size: 12px; line-height: 1.45; }
 
-.report-location p { margin: 0; color: #607057; font-size: 13px; line-height: 1.5; }
-.report-location > button + p { margin-top: 8px; }
-.report-location__panel:not([hidden]) { display: grid; justify-items: start; gap: 10px; margin-top: 10px; }
-.report-location__map { width: 100%; height: clamp(240px, 45vh, 340px); border-radius: 8px; background: #eef2eb; }
-
 .report-form__actions {
   display: flex;
   justify-content: flex-end;
