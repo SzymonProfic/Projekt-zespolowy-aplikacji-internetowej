@@ -5,6 +5,7 @@ import { createReport, getCategories, ReportRequestError, updateReport } from '.
 import type { Category } from '../../types/report';
 import { getReportFormPoint, todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
 import { LocationMap } from '../LocationMap/LocationMap';
+import { CitySearch } from '../CitySearch/CitySearch';
 import './ReportForm.css';
 
 const emptyValues: ReportFormValues = {
@@ -211,9 +212,21 @@ export function ReportForm({ editing }: ReportFormProps) {
           </Field>
 
           <div className="report-form__grid">
-            <Field id={fieldId('locationLabel')} label="Miejsce zdarzenia" required error={errors.locationLabel}>
-              <input {...fieldProps('locationLabel')} required minLength={3} maxLength={255} placeholder="np. Częstochowa, Raków" />
-            </Field>
+            <CitySearch id={fieldId('locationLabel')} name="locationLabel" label="Miejsce zdarzenia"
+              required disabled={saving || !session.signedIn} className="report-form__field"
+              value={values.locationLabel} error={errors.locationLabel ?? ''}
+              help="Wybierz miasto z podpowiedzi. Dzielnicę lub ulicę możesz dopisać po przecinku, a dokładny punkt wskazać na mapie."
+              onChange={(locationLabel) => {
+                setValues((previous) => ({ ...previous, locationLabel }));
+                setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+              }}
+              onSelect={(city) => {
+                setValues((previous) => ({
+                  ...previous, locationLabel: city.label,
+                  initialLocation: { label: city.label, ...city.point }, selectedPoint: null,
+                }));
+                setErrors((previous) => ({ ...previous, locationLabel: undefined }));
+              }} />
             <Field id={fieldId('eventDate')} label="Data zdarzenia" required error={errors.eventDate}>
               <input {...fieldProps('eventDate')} type="date" required max={today} />
             </Field>
@@ -221,7 +234,7 @@ export function ReportForm({ editing }: ReportFormProps) {
           <section className="report-form__map" aria-labelledby={`${formId}-map-heading`}>
             <h2 id={`${formId}-map-heading`}>Miejsce zdarzenia na mapie</h2>
             <p className="report-page__muted">
-              Wpisz miasto, aby zobaczyć jego orientacyjne położenie. Kliknij mapę lub przeciągnij znacznik,
+              Wybierz miasto z podpowiedzi, aby zaznaczyć je na mapie. Kliknij mapę lub przeciągnij znacznik,
               aby wskazać dokładniejsze miejsce. Podaj też jego nazwę w polu „Miejsce zdarzenia”.
             </p>
             <LocationMap point={locationPoint} label={values.locationLabel}

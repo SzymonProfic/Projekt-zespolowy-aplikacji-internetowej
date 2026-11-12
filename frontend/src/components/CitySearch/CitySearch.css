@@ -1,0 +1,22 @@
+.city-search { position: relative; }
+.city-search__control { position: relative; display: grid; min-width: 0; }
+.city-search__help { color: #718078; font-size: 11px; font-weight: 400; line-height: 1.5; }
+.city-search__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 5;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #dce3da;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 20px #253c3920;
+}
+.city-search__dropdown ul { margin: 0; padding: 4px; list-style: none; }
+.city-search__dropdown button { width: 100%; padding: 10px; border: 0; border-radius: 5px; background: #fff; color: #253c39; text-align: left; font-size: 13px; cursor: pointer; }
+.city-search__dropdown button:hover, .city-search__dropdown [aria-selected="true"] { background: #eff5e8; }
+.city-search__dropdown p { margin: 0; padding: 12px; font-weight: 400; line-height: 1.5; }
+.city-search__error { color: #96372d; font-size: 12px; line-height: 1.5; }
+.city-search [aria-invalid="true"] { border-color: #b34b3e; }

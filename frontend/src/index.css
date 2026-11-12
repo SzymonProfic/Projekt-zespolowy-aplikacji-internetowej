@@ -13,7 +13,7 @@ button, input, select { font: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #69b4a2; outline-offset: 2px; }
 
 .foundly-page { max-width: 1120px; margin: 0 auto; padding: 24px 32px 64px; }
-.foundly-topbar { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 20px; }
+.foundly-topbar { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid #e5e9e0; }
 .foundly-brand { color: #253c39; font-size: 29px; font-weight: 750; letter-spacing: -1.5px; text-decoration: none; }
 .foundly-brand span { color: #177e70; }
 .foundly-heading { margin: 48px 0 30px; }
@@ -34,9 +34,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .filters__heading h2, .results__heading h2 { margin: 0; font-size: 18px; }
 .filters__heading p { margin: 5px 0 0; color: #718078; font-size: 13px; }
 .filters__clear { padding: 8px 10px; border: 0; background: transparent; color: #176f60; font-size: 13px; font-weight: 600; cursor: pointer; }
-.filters__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
-.filter-field { display: grid; min-width: 0; gap: 7px; color: #40544e; font-size: 12px; font-weight: 600; }
-.filter-field input, .filter-field select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #dce3da; border-radius: 7px; background: #fff; color: #253c39; font-size: 13px; font-weight: 400; }
+.filters__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 16px; margin-top: 20px; }
+.filter-field { display: grid; align-content: start; min-width: 0; gap: 7px; color: #40544e; font-size: 12px; font-weight: 600; }
+.filter-field input, .filter-field select { width: 100%; min-width: 0; height: 42px; padding: 9px 11px; border: 1px solid #dce3da; border-radius: 7px; background: #fff; color: #253c39; font-size: 13px; font-weight: 400; }
 .filter-field input::placeholder { color: #9aa59b; }
 .filters__actions { justify-content: flex-end; margin-top: 12px; }
 .filters__actions > span { color: #718078; font-size: 12px; }
@@ -63,6 +63,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 @media (max-width: 800px) {
   .filters__grid, .results__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .foundly-topbar { flex-wrap: wrap; gap: 18px; }
 }
 @media (max-width: 600px) {
   .foundly-page { padding: 18px 18px 40px; }

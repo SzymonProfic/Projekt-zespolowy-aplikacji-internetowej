@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { getReports, type ReportFilters } from './reports';
+import { getMyReports, getReports, type ReportFilters } from './reports';
 
 const filters: ReportFilters = {
-  type: 'lost', status: 'ACTIVE', categoryCode: 'KEYS', location: 'Kraków', center: null, radiusKm: 5,
+  type: 'lost', status: 'ACTIVE', categoryCode: 'KEYS', centerLabel: 'Kraków', center: null, radiusKm: 5,
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -18,9 +18,10 @@ it('wysyła środek i promień w metrach wraz z pozostałymi filtrami i stroną'
   await getReports({ ...filters, center: { latitude: 50.061, longitude: 19.937 }, radiusKm: 0.5 }, 2);
   const params = new URL(fetchMock.mock.calls[0][0]).searchParams;
   expect(Object.fromEntries(params)).toEqual({
-    page: '2', size: '12', status: 'ACTIVE', type: 'lost', categoryCode: 'KEYS', location: 'Kraków',
+    page: '2', size: '12', status: 'ACTIVE', type: 'lost', categoryCode: 'KEYS',
     latitude: '50.061', longitude: '19.937', radiusMeters: '500',
   });
+  expect(params.has('location')).toBe(false);
 });
 
 it('bez środka nie wysyła częściowego filtra przestrzennego, niezależnie od promienia', async () => {
@@ -42,4 +43,32 @@ it('po usunięciu obszaru pomija współrzędne również na kolejnych stronach'
   const cleared = new URL(fetchMock.mock.calls[1][0]).searchParams;
   expect(cleared.has('radiusMeters')).toBe(false);
   expect(cleared.get('page')).toBe('1');
+});
+
+it('pobiera moje ogłoszenia z chronionego endpointu z tokenem, filtrami i stronicowaniem', async () => {
+  const fetchMock = mockReports();
+  const controller = new AbortController();
+  await getMyReports({ ...filters, status: 'ALL' }, 1, 'user-access-token', controller.signal);
+  const [url, options] = fetchMock.mock.calls[0];
+  expect(new URL(url).pathname).toBe('/api/reports/mine');
+  expect(new URL(url).searchParams.get('status')).toBe('ALL');
+  expect(new URL(url).searchParams.get('page')).toBe('1');
+  expect(new URL(url).searchParams.has('authorId')).toBe(false);
+  expect(options.headers.get('Authorization')).toBe('Bearer user-access-token');
+  expect(options.signal).toBe(controller.signal);
+  expect(options.cache).toBe('no-store');
+});
+
+it('bez tokenu nie pobiera prywatnych ogłoszeń ani nie przechodzi na listę publiczną', async () => {
+  const fetchMock = mockReports();
+  await expect(getMyReports(filters, 0, '')).rejects.toMatchObject({ status: 401 });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('zwraca błąd wygasłej sesji bez zastępowania moich ogłoszeń publicznymi', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 401 }));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(getMyReports(filters, 0, 'expired-token')).rejects.toMatchObject({ status: 401 });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(new URL(fetchMock.mock.calls[0][0]).pathname).toBe('/api/reports/mine');
 });

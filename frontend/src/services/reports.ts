@@ -54,7 +54,7 @@ export interface ReportFilters {
   type: '' | 'lost' | 'found';
   status: 'ACTIVE' | 'RESOLVED' | 'ALL';
   categoryCode: string;
-  location: string;
+  centerLabel: string;
   center: ReportLocationPoint | null;
   radiusKm: number;
 }
@@ -73,17 +73,27 @@ export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
   return response.json() as Promise<Category[]>;
 }
 
-export async function getReports(filters: ReportFilters, page: number): Promise<ReportPage> {
+async function requestReports(path: string, filters: ReportFilters, page: number, signal?: AbortSignal, accessToken?: string): Promise<ReportPage> {
   const params = new URLSearchParams({ page: String(page), size: '12', status: filters.status });
   if (filters.type) params.set('type', filters.type);
   if (filters.categoryCode) params.set('categoryCode', filters.categoryCode);
-  if (filters.location) params.set('location', filters.location);
   if (filters.center) {
     params.set('latitude', String(filters.center.latitude));
     params.set('longitude', String(filters.center.longitude));
     params.set('radiusMeters', String(filters.radiusKm * 1000));
   }
-  const response = await fetch(`${apiUrl}/api/reports?${params.toString()}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Reports unavailable');
+  const headers = new Headers();
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  const response = await fetch(`${apiUrl}${path}?${params.toString()}`, { cache: 'no-store', headers, signal });
+  if (!response.ok) throw new ReportRequestError(response.status, 'Reports unavailable');
   return response.json() as Promise<ReportPage>;
+}
+
+export function getReports(filters: ReportFilters, page: number, signal?: AbortSignal) {
+  return requestReports('/api/reports', filters, page, signal);
+}
+
+export function getMyReports(filters: ReportFilters, page: number, accessToken: string, signal?: AbortSignal) {
+  if (!accessToken) return Promise.reject(new ReportRequestError(401, 'Brak aktywnej sesji'));
+  return requestReports('/api/reports/mine', filters, page, signal, accessToken);
 }
