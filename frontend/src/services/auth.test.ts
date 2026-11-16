@@ -38,9 +38,12 @@ describe('profile initialization after Keycloak sign-in', () => {
     expect(fixture.client.init).toHaveBeenCalledTimes(1);
     expect(fixture.client.init).toHaveBeenCalledWith(expect.objectContaining({ pkceMethod: 'S256', scope: 'openid profile email' }));
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith('http://localhost:8080/api/me', {
-      method: 'PUT', headers: { Authorization: 'Bearer access-token' }, cache: 'no-store',
-    });
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe('http://localhost:8080/api/me');
+    expect(options?.method).toBe('PUT');
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer access-token');
+    expect(options?.cache).toBe('no-store');
+    expect(options?.body).toBeUndefined();
     expect(auth.getAuthSnapshot()).toMatchObject({ status: 'ready', profile, signedIn: true });
   });
 
@@ -70,9 +73,9 @@ describe('profile initialization after Keycloak sign-in', () => {
     fixture.client.onAuthRefreshSuccess?.();
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(auth.getAuthSnapshot().status).toBe('ready'));
-    expect(fetch).toHaveBeenLastCalledWith('http://localhost:8080/api/me', expect.objectContaining({
-      headers: { Authorization: 'Bearer refreshed-token' },
-    }));
+    const [url, options] = vi.mocked(fetch).mock.calls.at(-1)!;
+    expect(url).toBe('http://localhost:8080/api/me');
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer refreshed-token');
   });
 
   it('ignores an in-flight profile response after logout', async () => {

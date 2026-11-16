@@ -1,0 +1,15 @@
+.report-status-actions {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #eff1eb;
+  color: #52665c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.report-status-actions p { margin: 0 0 12px; }
+.report-status-actions__buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-status-actions__confirm { background: #176f60; color: #fff; border-color: #176f60; }
+.report-status-actions__confirm:hover { background: #105c50; }
+.report-status-actions button:disabled { opacity: .6; cursor: default; }
+.report-status-actions [role="alert"] { margin-top: 12px; color: #9a3931; }

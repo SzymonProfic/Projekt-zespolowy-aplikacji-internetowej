@@ -1,13 +1,15 @@
+import { ApiError } from '../services/apiClient';
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ReportCard } from '../components/ReportCard/ReportCard';
+import { ReportStatusActions } from '../components/ReportStatusActions/ReportStatusActions';
 import { LocationMap } from '../components/LocationMap/LocationMap';
 import { CitySearch } from '../components/CitySearch/CitySearch';
 import { demoReports } from '../demo/reports';
-import { getCategories, getMyReports, getReports, ReportRequestError, type ReportFilters } from '../services/reports';
-import { getAccessToken, login } from '../services/auth';
-import type { Category, Report } from '../types/report';
+import { getCategories, getMyReports, getReports, type ReportFilters } from '../services/reports';
+import { login } from '../services/auth';
+import type { Category, ReportDetails } from '../types/report';
 
 const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', centerLabel: '', center: null, radiusKm: 5 };
 const radiusFormatter = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 });
@@ -20,7 +22,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [locationError, setLocationError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState<ReportDetails[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -28,6 +30,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [error, setError] = useState('');
   const [unauthorized, setUnauthorized] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const displayedReports = !mine && reports.length === 0 && totalElements === 0 && !appliedFilters.center
     ? demoReports.filter((report) => {
@@ -50,21 +53,22 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
     setUnauthorized(false);
     async function load() {
       if (!mine) return getReports(appliedFilters, page, controller.signal);
-      const token = await getAccessToken();
-      if (controller.signal.aborted) return null;
-      if (!token) throw new ReportRequestError(401, 'Brak aktywnej sesji');
-      return getMyReports(appliedFilters, page, token, controller.signal);
+      return getMyReports(appliedFilters, page, controller.signal);
     }
     void load()
       .then((result) => {
         if (controller.signal.aborted || !result) return;
+        if (page > 0 && page >= result.totalPages) {
+          setPage(Math.max(0, result.totalPages - 1));
+          return;
+        }
         setReports(result.content);
         setTotalPages(result.totalPages);
         setTotalElements(result.totalElements);
       })
       .catch((failure: unknown) => {
         if (controller.signal.aborted) return;
-        const expired = mine && failure instanceof ReportRequestError && failure.status === 401;
+        const expired = mine && failure instanceof ApiError && failure.status === 401;
         setUnauthorized(expired);
         setReports([]);
         setError(expired ? 'Sesja wygasła. Zaloguj się ponownie, aby zobaczyć swoje ogłoszenia.'
@@ -105,7 +109,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
         {mine && <Link className="report-page__back" to="/">Wróć do wszystkich ogłoszeń</Link>}
         <p className="foundly-eyebrow">{mine ? 'TWOJE KONTO' : 'ZGUBIONE I ZNALEZIONE'}</p>
         <h1>{mine ? 'Moje ogłoszenia' : 'Pomóż przedmiotom wrócić do domu.'}</h1>
-        <p>{mine ? 'Przeglądaj swoje zgłoszenia i otwieraj ich szczegóły, aby wprowadzić zmiany.' : 'Przeszukaj zgłoszenia i znajdź przedmiot, którego szukasz.'}</p>
+        <p>{mine ? 'Przeglądaj swoje zgłoszenia, edytuj je w szczegółach i zakończ te, które są już rozwiązane.' : 'Przeszukaj zgłoszenia i znajdź przedmiot, którego szukasz.'}</p>
         <Link className="report-action report-action--primary foundly-heading__action" to="/ogloszenia/nowe">
           <Plus size={17} aria-hidden="true" /> Dodaj zgłoszenie
         </Link>
@@ -173,6 +177,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
       </form>
 
       <section className="results" aria-live="polite">
+        {statusMessage && <p className="results__message" role="status">{statusMessage}</p>}
         <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{showingDemoReports ? `${displayedReports.length} przykładowe` : `${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
         {appliedFilters.center && <p className="results__area">Obszar wyszukiwania: {appliedFilters.centerLabel}, w promieniu {radiusFormatter.format(appliedFilters.radiusKm)} km. Najbliższe ogłoszenia najpierw.</p>}
         {error && <div className="results__message results__message--error" role="alert">
@@ -187,7 +192,16 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
         {!loading && !error && displayedReports.length === 0 && <div className="results__message">{mine ? 'Nie masz ogłoszeń spełniających wybrane kryteria. Dodaj zgłoszenie lub zmień filtry.' : 'Nie znaleziono ogłoszeń spełniających wybrane kryteria.'}</div>}
         {!loading && !error && displayedReports.length > 0 && (
           <div className="results__grid">
-            {displayedReports.map((report) => (
+            {mine ? reports.map((report) => (
+              <ReportCard key={report.id} report={report} detailsTo={`/ogloszenia/${report.id}`}
+                actions={<ReportStatusActions report={report}
+                  onRefresh={() => setAttempt((value) => value + 1)}
+                  onResolved={(updated) => {
+                    setReports((current) => current.map((item) => item.id === updated.id ? updated : item));
+                    setStatusMessage(`Zgłoszenie „${updated.title}” zostało zakończone.`);
+                    setAttempt((value) => value + 1);
+                  }} />} />
+            )) : displayedReports.map((report) => (
               <ReportCard
                 key={report.id}
                 report={report}

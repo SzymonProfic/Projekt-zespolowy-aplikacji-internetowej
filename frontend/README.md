@@ -24,7 +24,7 @@ Wszystkie poniższe polecenia wykonuj w katalogu `frontend`.
 
 | Polecenie | Działanie |
 | --- | --- |
-| `npm test` | Testy sesji i synchronizacji profilu oraz walidacji formularza, formatu danych i warunków dostępności edycji. |
+| `npm test` | Testy klienta HTTP, autoryzacji, serwisów API, sesji i synchronizacji profilu oraz walidacji formularza, formatu danych i warunków dostępności edycji. |
 | `npm run typecheck` | Sprawdza typy TypeScript bez generowania plików. |
 | `npm run build` | Sprawdza typy i tworzy wersję produkcyjną w `dist/`. |
 | `npm run preview` | Uruchamia lokalny podgląd wcześniej zbudowanej wersji. |
@@ -36,7 +36,7 @@ Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backe
 | Adres | Działanie |
 | --- | --- |
 | `/` | Lista i filtry ogłoszeń. Przykładowe karty mogą pojawić się przy pustych wynikach i nie mają adresów w API. |
-| `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Wejście przez „Twoje konto” w nagłówku. |
+| `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Autor może zakończyć aktywne zgłoszenie po potwierdzeniu. Wejście przez „Twoje konto” w nagłówku. |
 | `/ogloszenia/:id` | Publiczny odczyt szczegółów. Przycisk „Edytuj zgłoszenie” widzi autor aktywnego zgłoszenia. |
 | `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
 | `/ogloszenia/:id/edytuj` | Edycja aktywnego zgłoszenia przez autora. Typ zgłoszenia pozostaje bez zmian. |
@@ -131,4 +131,26 @@ Adapter `keycloak-js` używa Authorization Code z PKCE S256 i zakresów `openid 
 
 Domyślne adresy to backend `http://localhost:8080` i Keycloak `http://localhost:8081`, realm `foundly`. Można je zmienić w lokalnym pliku `.env.local` na podstawie [.env.example](.env.example): `VITE_API_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`. Przy zmianie origin frontendu trzeba również zmienić callback i Web Origins klienta w Keycloak oraz CORS backendu. `npm run preview` używa innego portu, którego domyślna konfiguracja logowania nie obejmuje.
 
-Implementacja sesji jest w `src/services/auth.ts`, jej testy w `src/services/auth.test.ts`, a widok konta w `src/components/AccountSession/`. Formularze używają tej samej sesji do pobrania aktualnego tokenu przed zapisem.
+Implementacja sesji jest w `src/services/auth.ts`, jej testy w `src/services/auth.test.ts`, a widok konta w `src/components/AccountSession/`. Serwisy API pobierają aktualny token przez wspólny adapter przed chronionymi operacjami.
+
+## Komunikacja z API
+
+Komponenty i hooki korzystają z funkcji domenowych w `src/services/reports.ts`, np. `resolveReport(id, version, signal)`. Nie wykonują bezpośrednich wywołań `fetch` ani nie przekazują tokenów.
+
+- `apiClient.ts` zawiera jedyne wywołanie `fetch`: wspólny adres `VITE_API_URL`, nagłówki, serializację JSON i odczyt odpowiedzi. Obsługuje również odpowiedzi bez treści (`204` i `205`). Domyślnie używa `cache: 'no-store'`.
+- `authenticatedApi.ts` pobiera odświeżony token z `auth.ts`. Chronione operacje bez sesji kończą się `ApiError` ze statusem `401` przed wysłaniem żądania. Szczegóły zgłoszenia jawnie dopuszczają odczyt anonimowy; listy publiczne i kategorie nie wymagają inicjalizacji sesji.
+- `auth.ts` zarządza sesją Keycloak. Synchronizacja profilu używa `apiClient.ts` z tokenem już posiadanym przez adapter, aby uniknąć cyklicznego oczekiwania podczas inicjalizacji.
+- `reports.ts` określa endpointy, typy danych, parametry filtrów i wymagania autoryzacji.
+
+Niepowodzenie HTTP zgłasza wspólny `ApiError` z `status` i komunikatem `detail` z odpowiedzi Problem Detail. Odpowiedzi błędów bez poprawnego JSON otrzymują komunikat zastępczy. Błędy sieciowe i anulowanie żądania pozostają odrębnymi błędami. Komponenty dobierają komunikaty i działania użytkownika do kontekstu; klient HTTP nie przekierowuje automatycznie do logowania ani nie ponawia operacji zapisu.
+
+Nowe żądania przekazują dane przez opcję `json` i otrzymują `AbortSignal` od komponentu lub hooka. Dla odpowiedzi bez treści należy użyć typu `void`.
+
+```ts
+// W serwisie domenowym, dla nowej operacji wymagającej sesji:
+return authenticatedRequest<ReportDetails>(`/api/reports/${encodeURIComponent(id)}/status`, {
+  method: 'PATCH',
+  json: { version, status: 'RESOLVED' },
+  signal,
+});
+```
