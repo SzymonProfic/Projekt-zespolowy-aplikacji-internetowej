@@ -3,6 +3,12 @@
 Lokalny serwer HTTP generujący embeddingi tekstu za pomocą modelu
 `sdadas/mmlw-roberta-base`.
 
+Serwis ładuje przypiętą rewizję `bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7`
+przez parametr `revision` biblioteki Sentence Transformers. Identyfikator i rewizja
+są zapisane w `server.py` i zwracane w odpowiedzi. Model musi deklarować 768
+wymiarów; inny wymiar blokuje start serwera. Świadoma aktualizacja modelu wymaga
+zmiany przypiętej rewizji i ponownego przeliczenia zapisanych embeddingów.
+
 ## Uruchomienie
 
 Wymagany Python 3.10 lub nowszy.
@@ -36,7 +42,15 @@ docker compose logs -f embedding-service
 Serwis startuje również przy zwykłym `docker compose up -d` oraz z profilem
 `--profile app`. API jest dostępne na hoście pod `http://localhost:8000`,
 a dla innych usług w Compose pod `http://embedding-service:8000`.
-Backend nie wywołuje jeszcze tego API.
+Backend wywołuje API w tle z workera obsługującego zadania `matching_job`.
+
+`GET /model` zwraca `model_id`, `model_revision` i `dimensions` bez wywołania
+inferencji. Backend używa tego endpointu do sprawdzania aktualności zapisanych
+embeddingów przed ewentualnym ponownym generowaniem wektora.
+
+```sh
+curl --fail http://localhost:8000/model
+```
 
 Compose przechowuje model w wolumenie `embedding_model_cache`. Pierwsze
 uruchomienie wymaga internetu i może potrwać kilka minut. Kontrola gotowości
@@ -71,18 +85,21 @@ curl 'http://localhost:8000/' \
   -d '{"description": "Ala ma kota"}'
 ```
 
-Odpowiedź zawiera tekst i listę liczb:
+Odpowiedź zawiera tekst, wektor i metadane modelu:
 
 ```json
 {
   "description": "Ala ma kota",
-  "numbers": [0.012, -0.034, 0.056]
+  "numbers": [0.012, -0.034, 0.056],
+  "model_id": "sdadas/mmlw-roberta-base",
+  "model_revision": "bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7",
+  "dimensions": 768
 }
 ```
 
-Liczby powyżej są przykładowe. Faktyczny embedding jest znormalizowany do
-długości 1. Parametr `truncate_dim=1024` ogranicza liczbę wymiarów do maksymalnie
-1024; nie powiększa wektora zwracanego przez model.
+Wektor powyżej jest skrócony do trzech przykładowych wartości. Faktyczna lista
+`numbers` ma 768 elementów i jest znormalizowana do długości 1. Wymiar odpowiedzi
+jest odczytywany z załadowanego modelu i sprawdzany względem wygenerowanego wektora.
 
 Tekst przekazuj przez `POST /` jako JSON w kodowaniu UTF-8, w polu `description`.
 Nie trzeba kodować tekstu jak w adresie URL. Pole musi być niepustym tekstem.
@@ -90,3 +107,13 @@ Nie trzeba kodować tekstu jak w adresie URL. Pole musi być niepustym tekstem.
 Niepoprawny JSON lub niepoprawne pole `description` zwracają HTTP 400.
 Niepoprawny Content-Type zwraca HTTP 415, a inna ścieżka HTTP 404.
 Błąd generowania embeddingu zwraca HTTP 500.
+
+## Testy kontraktu
+
+Z głównego katalogu repozytorium:
+
+```sh
+python3 -m unittest discover -s embedding-service -p 'test_*.py' -v
+```
+
+Testy używają lokalnego HTTP i atrapy modelu, bez pobierania wag ani zależności AI.

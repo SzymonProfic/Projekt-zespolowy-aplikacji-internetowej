@@ -5,9 +5,30 @@ import logging
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+MODEL_ID = "sdadas/mmlw-roberta-base"
+MODEL_REVISION = "bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7"
+EXPECTED_DIMENSIONS = 768
+
+
+def load_model():
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(MODEL_ID, revision=MODEL_REVISION)
+
 
 def create_handler(model):
+    dimensions = model.get_sentence_embedding_dimension()
+    if dimensions != EXPECTED_DIMENSIONS:
+        raise ValueError(f"Model musi zwracać {EXPECTED_DIMENSIONS} wymiarów, otrzymano {dimensions}")
+    metadata = {"model_id": MODEL_ID, "model_revision": MODEL_REVISION, "dimensions": dimensions}
+
     class MyServer(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/model":
+                self.send_json(200, metadata)
+            else:
+                self.send_json(404, {"error": "Nie znaleziono endpointu."})
+
         def do_POST(self):
             if self.path != "/":
                 self.send_json(404, {"error": "Nie znaleziono endpointu."})
@@ -31,15 +52,20 @@ def create_handler(model):
                 return
 
             try:
-                embeddings = model.encode(
-                    req, truncate_dim=1024, normalize_embeddings=True
-                )
+                embeddings = model.encode(req, normalize_embeddings=True)
+                numbers = embeddings.tolist()
+                if len(numbers) != dimensions:
+                    raise ValueError("Wymiar wygenerowanego embeddingu nie odpowiada modelowi")
             except Exception:
                 logging.exception("Nie udało się wygenerować embeddingu")
                 self.send_json(500, {"error": "Nie udało się wygenerować embeddingu."})
                 return
 
-            self.send_json(200, {"description": req, "numbers": embeddings.tolist()})
+            self.send_json(200, {
+                "description": req,
+                "numbers": numbers,
+                **metadata,
+            })
 
         def send_json(self, status, response):
             body = json.dumps(response, ensure_ascii=False).encode("utf-8")
@@ -53,10 +79,8 @@ def create_handler(model):
 
 
 def main():
-    from sentence_transformers import SentenceTransformer
-
     logging.basicConfig(level=logging.INFO)
-    model = SentenceTransformer("sdadas/mmlw-roberta-base")
+    model = load_model()
     host = os.environ.get("HOST", "localhost")
     with HTTPServer((host, 8000), create_handler(model)) as server:
         print(f"Serwer działa na http://{host}:8000", flush=True)

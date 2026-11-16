@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/reports").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reports/mine").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reports/*/matches").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reports/*").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())

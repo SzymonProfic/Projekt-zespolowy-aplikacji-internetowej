@@ -1,6 +1,7 @@
 package pl.szymonprofic.foundlybackend.controllers;
 
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import pl.szymonprofic.foundlybackend.dto.*;
 import pl.szymonprofic.foundlybackend.services.ReportService;
 import pl.szymonprofic.foundlybackend.services.CurrentUserService;
+import pl.szymonprofic.foundlybackend.services.ReportMatchService;
 import java.net.URI;
 import java.util.UUID;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class ReportController {
     private final ReportService reports;
     private final CurrentUserService users;
+    private final ReportMatchService matches;
 
     @GetMapping
     public PageResponse<ReportResponse> list(@ParameterObject @Valid @ModelAttribute ReportFilter filter,
@@ -41,6 +44,15 @@ public class ReportController {
     @GetMapping("/{id}")
     public ReportResponse get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         return reports.get(id, jwt);
+    }
+
+    @GetMapping("/{id}/matches")
+    @Operation(summary = "Pobierz aktualne dopasowania własnego zgłoszenia")
+    public PageResponse<ReportMatchResponse> matches(@PathVariable UUID id,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @AuthenticationPrincipal Jwt jwt) {
+        return matches.list(id, jwt, page, size);
     }
 
     @PostMapping

@@ -40,8 +40,375 @@ Migracja Flyway `V4__enable_pgvector.sql` włącza rozszerzenie `vector` w bazie
 przy starcie backendu, również dla istniejącej bazy. Po aktualizacji obrazu wykonaj
 `docker compose up -d --build --wait db` i uruchom ponownie backend.
 Dotychczasowy wolumen `postgis_data` jest zachowany. Rozszerzenia nie są dodawane
-do osobnej bazy Keycloak. Samo włączenie pgvector nie dodaje jeszcze kolumn
-embeddingów ani wyszukiwania semantycznego.
+do osobnej bazy Keycloak.
+
+Migracja `V5__create_report_embedding.sql` tworzy tabelę `report_embedding`:
+jeden wektor `vector(768)` na zgłoszenie, identyfikator i rewizja modelu,
+wersja przygotowania tekstu, hash SHA-256 wejścia oraz czas wygenerowania.
+Embedding jest usuwany razem ze zgłoszeniem. Worker zapełnia tabelę automatycznie
+po utworzeniu ogłoszenia, gdy usługa embeddingów jest dostępna.
+
+`EmbeddingTextBuilder` przygotowuje tekst w wersji `v1`: tytuł, opis i opcjonalny
+wiersz `Kolor: ...`, rozdzielone znakami nowej linii. Normalizuje Unicode do NFC
+i porządkuje białe znaki wewnątrz pól. Dla LOST dodaje prefiks `zapytanie: `,
+a dla FOUND pozostawia tekst bez prefiksu. Zwraca tekst, jego SHA-256 w UTF-8
+oraz wersję przygotowania. Kategoria, lokalizacja i data nie wpływają na hash.
+Komponent jest wywoływany przez workera po zapisaniu zgłoszenia i zadania.
+
+`EmbeddingClient.generate(text)` wysyła `POST /` do istniejącego embedding-service
+z JSON-em `{"description":"..."}`. Zwraca `EmbeddingResult`: niemodyfikowalną listę
+`numbers`, `modelId`, `modelRevision` oraz `dimensions`. Sprawdza 768 skończonych
+liczb i normę równą 1 z tolerancją 0,001. Wymaga też nazwy
+`sdadas/mmlw-roberta-base`, pełnego 40-znakowego hasha rewizji oraz całkowitego
+`dimensions` równego 768. Brak metadanych jest błędem kontraktu, bez podstawiania
+domyślnej rewizji. Klient wysyła body UTF-8 z `Content-Length`, wymaganym przez serwer Python.
+
+`EmbeddingClient.modelInfo()` odczytuje `GET /model`: nazwę, rewizję i wymiar
+faktycznie załadowanego modelu, bez generowania embeddingu. Worker pobiera te
+metadane przed sprawdzeniem cache; nie zakłada stałej rewizji w backendzie.
+
+Przepływ przygotowania tekstu i wywołania AI w workerze:
+
+```java
+var prepared = textBuilder.build(type, content);
+var result = embeddingClient.generate(prepared.text());
+// result.numbers(), result.modelId(), result.modelRevision(), result.dimensions()
+```
+
+| Zmienna | Domyślna wartość lokalna | Znaczenie |
+| --- | --- | --- |
+| `EMBEDDING_BASE_URL` | `http://localhost:8000` | Adres serwisu; Compose ustawia `http://embedding-service:8000` |
+| `EMBEDDING_CONNECT_TIMEOUT` | `2s` | Limit nawiązania połączenia |
+| `EMBEDDING_READ_TIMEOUT` | `30s` | Limit oczekiwania na odczyt danych; nie jest limitem całego zadania |
+
+`EmbeddingClientException.isRetryable()` odróżnia błędy przejściowe (problemy
+sieciowe, timeout, HTTP 408/429/5xx) od błędów kontraktu i pozostałych statusów
+HTTP. Klient nie ponawia żądań samodzielnie; retry obsługuje kolejka workera.
+Wywołanie AI odbywa się w tle, poza transakcją HTTP. Integracja nie wymaga
+działającego serwisu AI podczas startu backendu ani przy zapisie ogłoszenia.
+
+`ReportEmbeddingRepository` korzysta z `JdbcTemplate` i udostępnia:
+
+- `findByReportId(reportId)` — odczyt `Optional<ReportEmbedding>` z wektorem i metadanymi;
+- `save(embedding)` — atomowy `INSERT ... ON CONFLICT (report_id) DO UPDATE`;
+- `isCurrent(reportId, inputHash, modelId, modelRevision, preprocessingVersion)` —
+  sprawdzenie zgodności zapisanych metadanych z wartościami podanymi przez wywołującego.
+
+`ReportEmbedding` jest niemodyfikowalnym rekordem danych, bez mapowania JPA.
+Repozytorium zapisuje i odczytuje pgvector przez parametryzowany SQL; nie wymaga
+dodatkowego sterownika wektorowego. pgvector przechowuje liczby w pojedynczej
+precyzji, więc odczyt wartości `double` może nieznacznie różnić się od wejścia.
+Zapis embeddingu nie zmienia `version` ani pól zgłoszenia w tabeli `report`.
+
+Repozytorium nie wywołuje AI; zapisuje wynik otrzymany przez workera.
+`isCurrent()` nie odczytuje aktualnego opisu z `report` i nie blokuje późniejszych
+zmian. Kontrolę rewizji ogłoszenia oraz zabezpieczenie przed zapisem spóźnionego
+wyniku zapewnia `EmbeddingJobProcessor` w transakcji publikacji.
+
+Migracja `V6__create_matching_job.sql` dodaje trwałą kolejkę analizy. Przy
+`POST /api/reports` oraz zaakceptowanym `PUT /api/reports/{id}` backend zapisuje
+ogłoszenie i zadanie `PENDING` w jednej
+transakcji. `MatchingJobService.schedule(reportId, reportVersion)` wymaga już
+aktywnej transakcji (`Propagation.MANDATORY`). Repozytorium używa tego samego
+źródła danych co JPA, więc rollback wycofuje oba zapisy.
+
+Zadanie zawiera `report_version` z istniejącego `Report.version` oraz
+`pipeline_version=v2`. Unikalność `(report_id, report_version, pipeline_version)`
+zapobiega duplikatom, również przy równoczesnym planowaniu. Ponowne zlecenie
+tej samej analizy nie resetuje stanu, terminu ani liczby prób istniejącego zadania.
+Usunięcie ogłoszenia usuwa też jego zadania przez `ON DELETE CASCADE`.
+
+Tabela ma przygotowane pola prób, terminu wykonania, dzierżawy, tokenu wykonawcy
+i ostatniego błędu. Statusy to `PENDING`, `PROCESSING`, `COMPLETED`, `DEAD` oraz
+`SUPERSEDED`. Worker sprawdza wersję i aktywność zgłoszenia przed wywołaniem AI
+oraz ponownie przed publikacją wyników. Nieaktualne zadanie otrzymuje `SUPERSEDED`.
+Każdy zaakceptowany PUT zachowuje dotychczasowe wersjonowanie i zleca analizę
+nowej wersji zgłoszenia, nawet jeśli tekst po normalizacji pozostaje taki sam.
+Starsze zadania nie mogą zapisać wyników po edycji. Ogłoszenia zakończone nie
+mogą być edytowane, a ich oczekujące zadania są oznaczane jako `SUPERSEDED`.
+
+`MatchingJobService.claimNext()` jest gotowym mechanizmem przejmowania pracy.
+W osobnej, krótkiej transakcji (`REQUIRES_NEW`) wybiera jedno zadanie procesu `v2`:
+gotowe `PENDING` lub `PROCESSING` z wygasłą dzierżawą. Używa
+`FOR UPDATE SKIP LOCKED`, ustawia `PROCESSING`, zwiększa `attempts` i nadaje nowy
+`lock_token` oraz `locked_until`. Zwraca `Optional<ClaimedMatchingJob>`.
+Brak kwalifikującego się zadania daje `Optional.empty()`.
+
+`MATCHING_LEASE_DURATION` ustala długość dzierżawy (domyślnie `2m`). Dzierżawa
+powinna obejmować czas wykonania zadania, w tym timeout AI. Przejęcie zatwierdza się
+przed rozpoczęciem wolnej pracy; blokady bazy nie są utrzymywane podczas inferencji.
+Zadania w przyszłości i inne wersje procesu są pomijane.
+
+`MatchingJobService.complete(job)` wymaga aktywnej transakcji. Ustawia `COMPLETED`
+i usuwa dzierżawę tylko przy zgodnym tokenie oraz niewygasłym `locked_until`.
+Zwraca `false` dla starego tokenu, wygasłej dzierżawy i zadania już zakończonego.
+`EmbeddingJobProcessor.publish()` zapisuje wynik oraz wykonuje `complete()`
+w tej samej transakcji. Wynik `false` powoduje wyjątek i rollback zapisu embeddingu.
+
+`MatchingScheduler` wywołuje `MatchingWorker.processNext()` automatycznie.
+Pojedynczy scheduler wykonuje zadania kolejno. Wiele instancji backendu korzysta
+ze wspólnej kolejki i dzierżaw. Worker czyta dane w krótkiej transakcji,
+wywołuje AI bez transakcji, a następnie blokuje zgłoszenie do zapisu,
+ponownie sprawdza jego wersję/status i publikuje wynik wraz z zakończeniem zadania.
+W procesie `v2` status `COMPLETED` oznacza zapis lub ponowne wykorzystanie
+embeddingu, obliczenie rankingu i zapis aktualnych dopasowań. Brak kandydatów
+również jest poprawnym zakończeniem zadania. Powiadomienia nie są jeszcze tworzone.
+
+| Zmienna | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `MATCHING_ENABLED` | `true` | Włączenie automatycznego schedulera |
+| `MATCHING_POLL_INTERVAL` | `1s` | Opóźnienie po zakończeniu poprzedniego wywołania workera |
+| `MATCHING_LEASE_DURATION` | `2m` | Długość dzierżawy |
+| `MATCHING_RETRY_DELAY` | `5s` | Początkowy czas retry, rosnący wykładniczo z losowym rozrzutem, maksymalnie 5 minut |
+| `MATCHING_MAX_ATTEMPTS` | `5` | Limit prób, wliczając odzyskane dzierżawy |
+
+Błędy przejściowe wracają do `PENDING` z przyszłym `available_at`.
+Błędy trwałe lub wyczerpanie limitu dają `DEAD`; również wygasłe dzierżawy
+po ostatniej próbie są wycofywane do `DEAD`. Stan zmienia tylko posiadacz
+aktualnego, niewygasłego tokenu. Błędy są zapisywane jako kody, bez tekstu
+ogłoszenia, wektora lub surowej odpowiedzi AI.
+
+Po przygotowaniu tekstu i pobraniu metadanych modelu worker sprawdza cache.
+Zgodny hash, model, jego rewizja i wersja przygotowania tekstu pozwalają pominąć
+`POST /` bez zmiany `report_embedding.updated_at`. Ranking i zapis dopasowań
+wykonują się również w tej ścieżce.
+Dotyczy to m.in. zmiany samej kategorii, daty, lokalizacji lub białych znaków
+normalizowanych przez builder. Zmiana tytułu, opisu lub koloru wymagająca innego
+tekstu wejściowego powoduje ponowną generację. Niezgodna rewizja modelu albo
+wersja przygotowania tekstu również unieważnia cache.
+
+Przy ponownym użyciu wektora `EmbeddingJobProcessor.completeIfCurrent()` blokuje
+ogłoszenie, sprawdza jego wersję i aktywność oraz kończy zadanie wyłącznie
+z aktualnym tokenem. Brak metadanych serwisu AI nie pozwala uznać cache za aktualny
+na podstawie samego hasha. Aktualizacja modelu wymusi przeliczenie przy następnym
+zadaniu; masowe ponowne zlecenie analizy starszych zgłoszeń pozostaje osobnym etapem.
+
+Po uruchomieniu aktualnego backendu i utworzeniu ogłoszenia kolejkę można
+sprawdzić w bazie:
+
+```sql
+SELECT id, report_id, report_version, pipeline_version, status, attempts, available_at
+FROM matching_job
+ORDER BY created_at DESC;
+
+SELECT report_id, model_id, model_revision, vector_dims(embedding) AS dimensions, updated_at
+FROM report_embedding
+ORDER BY updated_at DESC;
+```
+
+Do ręcznego testu uruchom aktualne kontenery:
+
+```sh
+docker compose --profile app up -d --build backend embedding-service
+```
+
+Dodaj ogłoszenie przez aplikację. Zadanie powinno przejść z `PENDING` przez
+`PROCESSING` do `COMPLETED`, a tabela `report_embedding` powinna otrzymać wpis.
+Następnie zmień tylko datę lub lokalizację: pojawi się kolejne zadanie dla nowej
+`report_version`, ale hash i `updated_at` embeddingu powinny pozostać bez zmian.
+Po zmianie opisu zmienią się hash i czas embeddingu. Nowy backend wymaga również
+nowego obrazu embedding-service obsługującego `GET /model`.
+Przy `DEAD` sprawdź `last_error` i konfigurację usługi AI. Ustawienie
+`MATCHING_ENABLED=false` wyłącza tylko automatyczne przetwarzanie; zapis zadań
+przy publikacji pozostaje aktywny.
+
+## Ranking kandydatów LOST/FOUND
+
+`MatchingRankingService.rank(reportId, limit)` zwraca uporządkowaną listę
+potencjalnych par. Limit musi mieścić się w przedziale 1–100. Jest to komponent
+wewnętrzny, wywoływany automatycznie przez workera. Wynik utrwala
+`ReportMatchService.saveIfCurrent()` opisany poniżej. Autor może odczytać zapisane
+dopasowania przez `GET /api/reports/{id}/matches`. Nie ma jeszcze powiadomień.
+Sam ranking nie zmienia danych.
+
+`MatchingCandidateRepository` jednym zapytaniem pobiera spójny obraz obu zgłoszeń
+i embeddingów. Uwzględnia tylko aktywne zgłoszenia przeciwnych typów, różnych
+autorów, mające wektory z tej samej wersji modelu i przygotowania tekstu.
+Semantykę oblicza jako `1 - (embedding <=> embedding)`, a odległość jako
+`ST_Distance(geography, geography)` w metrach. Inna kategoria nie wyklucza pary.
+
+Serwis ponownie buduje tekst każdego zgłoszenia przez `EmbeddingTextBuilder`
+i porównuje jego hash oraz wersję przygotowania z zapisanymi metadanymi.
+Zmiana opisu oczekująca na worker wyklucza nieaktualny wektor z rankingu.
+Zmiana samej daty, kategorii lub lokalizacji pozwala użyć istniejącego embeddingu
+z nowymi danymi rankingu. Nie kopiujemy normalizacji Unicode ani hashowania do SQL.
+
+Brak źródła, nieaktywny stan lub brak aktualnego embeddingu źródła daje pustą
+listę. Pusta lista nie rozróżnia oczekiwania na embedding od braku kandydatów;
+docelowe API będzie potrzebować osobnego stanu analizy. Serwis nie wywołuje AI:
+porównuje zgodne rewizje zapisane przy wektorach, bez sprawdzania, czy są najnowszą
+rewizją wdrożonego modelu. API decyzji użytkowników pozostaje osobnym etapem.
+Pary ze statusem `REJECTED` są już wykluczane w zapytaniu
+przed sortowaniem i limitem, aby nie blokowały innych kandydatów.
+
+### Składowe i konfiguracja
+
+Parametry są zebrane w `MatchingRankingProperties`, pod prefiksem
+`foundly.matching.ranking` w `application.properties`. Nieprawidłowe wagi, skale
+lub próg zatrzymują uruchomienie konfiguracji.
+
+| Parametr | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `version` | `v1` | Wersja reguł dołączana do wyniku |
+| `semantic-weight` | `0.6` | Waga semantyki |
+| `location-weight` | `0.2` | Waga lokalizacji |
+| `date-weight` | `0.1` | Waga daty |
+| `category-weight` | `0.1` | Waga kategorii |
+| `distance-scale-meters` | `10000` | Skala spadku zgodności lokalizacji |
+| `date-scale-days` | `14` | Skala spadku zgodności po dacie zgubienia |
+| `early-found-tolerance-days` | `2` | Tolerancja znalezienia przed podaną datą zgubienia |
+| `early-found-scale-days` | `2` | Skala spadku po przekroczeniu tej tolerancji |
+| `min-semantic-score` | `0.5` | Minimalna semantyka, niezależna od pozostałych sygnałów |
+| `max-results` | `10` | Liczba najlepszych ocen zapisywanych przez pojedyncze zadanie; zakres 1–100 |
+
+Kalkulator stosuje następujące reguły:
+
+- `S`: podobieństwo cosinusowe ograniczone do `[0,1]`.
+- `L = exp(-distanceMeters / distanceScaleMeters)`.
+- Dla `days = foundDate - lostDate >= 0`: `D = exp(-days / dateScaleDays)`.
+- Dla ujemnego odstępu: `D = exp(-max(0, -days - tolerance) / earlyFoundScaleDays)`.
+- `C = 1` przy tej samej znanej kategorii, `C = 0` przy różnych znanych kategoriach.
+  `OTHER` i brak kategorii oznaczają brak wiarygodnego sygnału, a nie zgodność.
+
+Dla kompletnych danych wynik to `0.6*S + 0.2*L + 0.1*D + 0.1*C`.
+Przy brakujących sygnałach wynik jest dzielony przez sumę dostępnych wag.
+`evidenceCoverage` pokazuje udział dostępnych wag w ich pełnej sumie.
+Kalkulator obsługuje brak lokalizacji i daty, ale obecny kontrakt zapisu zgłoszeń
+nadal wymaga tych pól; obsługa danych nieznanych i przedziałów wymaga rozszerzenia
+schematu oraz formularzy.
+
+Wynik `RankedMatch` ma kanoniczne `lostReportId` i `foundReportId`, wersje obu
+zgłoszeń, hashe wejścia i czasy wygenerowania obu embeddingów, identyfikację
+modelu i rankingu, odległość, odstęp dni oraz składowe
+`scores`. Wagi, skale i próg są wartościami startowymi, bez kalibracji na oznaczonym
+zbiorze par. `finalScore` jest rankingiem, a nie prawdopodobieństwem własności.
+
+### Wyszukiwanie i testy
+
+Dokładny ranking jest liczony dla wszystkich kwalifikujących się kandydatów.
+Hash i próg semantyczny są sprawdzane przed końcowym sortowaniem i limitem.
+Remisy rozstrzyga semantyka, następnie identyfikatory LOST i FOUND. Nie ma HNSW
+ani wstępnego ograniczenia do kilku najbardziej podobnych wektorów, które mogłoby
+zgubić parę lepszą według rankingu hybrydowego. To rozwiązanie dla początkowej,
+niewielkiej skali; przed wzrostem liczby zgłoszeń potrzebne będą pomiary zapytań.
+
+```java
+var matches = matchingRankingService.rank(reportId, 10);
+// match.scores().semantic(), location(), date(), category(), finalScore(), evidenceCoverage()
+```
+
+Testy kalkulatora oraz integracji z rzeczywistym PostgreSQL/PostGIS/pgvector:
+
+```sh
+cd foundly-backend
+./mvnw -Dtest=MatchingScoreCalculatorTests,MatchingRankingIntegrationTests test
+```
+
+Testy integracyjne wymagają uruchomionego Dockera; przy jego braku są pomijane.
+Wyniki są obrazem danych w chwili zapytania. Serwis zapisu dopasowań ponownie
+weryfikuje aktualność zgłoszeń i metadanych wektorów.
+
+Źródła operacji bazodanowych: [pgvector](https://github.com/pgvector/pgvector#querying),
+[PostGIS ST_Distance](https://postgis.net/docs/ST_Distance.html).
+
+## Zapis potencjalnych dopasowań
+
+Migracja `V7__create_report_match.sql` tworzy `report_match` z jedną kanoniczną
+parą LOST/FOUND (`UNIQUE(lost_report_id, found_report_id)`). Rekord zawiera
+składowe i wynik rankingu, kompletność danych, odległość i odstęp dni, wersje
+ogłoszeń, hashe wejściowe i czasy obu embeddingów, model, wersję przygotowania
+tekstu i rankingu oraz status, daty i licznik `version`.
+
+`ReportMatchService.saveIfCurrent(evaluation)` działa transakcyjnie i zwraca:
+
+| Wynik | Znaczenie |
+| --- | --- |
+| `SAVED` | Utworzono parę lub zaktualizowano ocenę istniejącej pary |
+| `UNCHANGED` | Ocena jest identyczna; nie zmieniono ID, dat ani wersji rekordu |
+| `STALE` | Zgłoszenia/wektory zmieniły się, są nieaktywne, niezgodne lub brakuje danych |
+| `PROTECTED` | Istniejąca para ma status `REJECTED` albo `CONFIRMED` |
+
+Przed zapisem serwis blokuje oba zgłoszenia w kolejności UUID, weryfikuje typy,
+różnych autorów, aktywność i wersje. Następnie blokuje do odczytu oba embeddingi
+i sprawdza ich hashe, czasy wygenerowania oraz model i wersję przygotowania
+tekstu. Sprawdza też wersję rankingu i minimalną semantykę. Dopiero potem blokuje
+istniejące dopasowanie i wykonuje upsert. Sama zgodność wersji ogłoszenia nie
+wystarcza: worker może wymienić wektor bez zmiany `Report.version`.
+
+Ponowne zapisanie tej samej pary nie tworzy duplikatu. Nowa ocena zachowuje
+`id` i `created_at`, aktualizuje dane i zwiększa `version`. Nieaktualny wynik
+nie zastępuje nowszego. Wartości wersji rankingu trzeba zmieniać wraz ze zmianą
+reguł lub wag; wszystkie instancje backendu powinny używać zgodnej konfiguracji.
+
+Status początkowy to `PROPOSED`. Upsert może odświeżyć `PROPOSED` lub przywrócić
+aktualnie ocenioną parę `EXPIRED` do `PROPOSED`. Nie zmienia `REJECTED` ani
+`CONFIRMED`. Statusy decyzji są przygotowane w schemacie; API decyzji i osobne
+decyzje obu autorów nie są jeszcze wdrożone.
+
+Edycja oraz zakończenie zgłoszenia wygaszają jego pary `PROPOSED` i `CONFIRMED`
+do `EXPIRED` w tej samej transakcji co zmiana zgłoszenia. Odrzucone pary pozostają
+odrzucone. Usunięcie dowolnego zgłoszenia usuwa parę przez `ON DELETE CASCADE`.
+Samo wygaśnięcie nie usuwa zapisanej oceny ani informacji o jej pochodzeniu.
+Zmiana modelu, samodzielna wymiana wektora lub zmiana polityki rankingu wymaga
+ponownej analizy; globalne unieważnianie takich ocen będzie częścią integracji
+workera: przy publikacji wygasza on pary, których wersje, fingerprinty wektorów,
+wersja rankingu lub minimalna semantyka przestały pasować. Odrzucone pary są
+zachowane. Endpoint odczytu sprawdza aktualność sugestii niezależnie od workera.
+
+Przykład użycia wewnętrznego:
+
+```java
+var evaluations = matchingRankingService.rank(reportId, 10);
+for (var evaluation : evaluations) {
+    var outcome = reportMatchService.saveIfCurrent(evaluation);
+}
+```
+
+Pojedyncze wywołanie serwisu zapisuje jedną parę. Worker grupuje publikację
+wektora, ranking, wygaszanie i zapis par oraz zakończenie zadania w jednej
+transakcji. Utrata tokenu albo błąd zapisu wycofują wszystkie te efekty.
+Dotyczy to zarówno nowego wektora, jak i ścieżki cache. Endpoint odczytu opisano
+poniżej; powiadomienia pozostają kolejnym etapem. Flyway wykona V7 i V8 również
+na istniejącej bazie.
+
+### Publikacja i istniejące zgłoszenia
+
+Przed publikacją worker pobiera transakcyjną blokadę doradczą PostgreSQL
+`pg_advisory_xact_lock(724013, 1)`. Serializuje ona krótki fragment publikacji
+między instancjami backendu. Drugi z równolegle generowanych wektorów widzi
+pierwszy po jego zatwierdzeniu, więc dwa nowe ogłoszenia nie pomijają swojej pary.
+Blokada nie obejmuje wywołania AI.
+
+Worker blokuje źródło i kwalifikujące się ogłoszenia przeciwnego typu w kolejności
+UUID przed rozpoczęciem zapisów. Dzięki temu późniejsze zapisy wielu par nie
+odwracają kolejności blokad. Jest to rozwiązanie dla małej skali; przy dużej bazie
+trzeba zmierzyć czas transakcji i wpływ na edycje. Poprawne istniejące pary, które
+nie znalazły się w nowym top N, pozostają zapisane: limit dotyczy jednego zadania,
+a nie całkowitej liczby rekordów powiązanych ze zgłoszeniem.
+
+Migracja `V8__enqueue_matching_pipeline_v2.sql` zleca proces `v2` dla aktualnej
+wersji każdego aktywnego ogłoszenia. Umożliwia analizę starszych zgłoszeń bez
+ręcznej edycji i bez wymuszonego ponownego generowania zgodnych embeddingów.
+Zakończona historia `v1` pozostaje w bazie, natomiast zadania `v1` w stanie
+`PENDING` i `PROCESSING` otrzymują `SUPERSEDED` z unieważnionymi tokenami.
+Wdrożenie zakłada restart backendu, bez równoległego utrzymywania starej aplikacji
+zlecającej `v1` i nowej zlecającej `v2`. Późniejsze zmiany modelu lub rankingu
+będą wymagały osobnego zlecenia ponownej analizy, nie ponownego uruchamiania V8.
+
+Do testu ręcznego uruchom aktualny backend i embedding-service, dodaj podobne
+LOST i FOUND z dwóch różnych kont i sprawdź `report_match`. Po zmianie samej
+lokalizacji embedding zachowa hash i czas, ale zapisany ranking zostanie odświeżony.
+
+```sql
+SELECT id, lost_report_id, found_report_id, semantic_score, final_score,
+       status, ranking_version, version, created_at, updated_at
+FROM report_match
+ORDER BY final_score DESC, id;
+```
+
+Testy `MatchingRankingIntegrationTests` obejmują zapis i aktualizację,
+idempotencję, równoległe wywołania, rollback, odrzucanie starych wyników,
+ochronę statusów oraz wygaszanie i usuwanie przez istniejący `ReportService`.
 
 ## Konto demonstracyjne
 
@@ -146,6 +513,7 @@ Zmienne konfiguracji backendu: `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWO
 | `PUT /api/me` | Użytkownik | Utworzenie lub synchronizacja własnego profilu z tokenu |
 | `GET /api/me` | Użytkownik | Odczyt własnego profilu; 404, jeśli jeszcze nie istnieje |
 | `GET /api/reports/mine` | Użytkownik | Lista własnych zgłoszeń z tymi samymi filtrami |
+| `GET /api/reports/{id}/matches` | Autor | Aktualne dopasowania własnego zgłoszenia, od najwyższej oceny |
 | `PUT /api/reports/{id}` | Autor | Edycja aktywnego zgłoszenia |
 | `PATCH /api/reports/{id}/status` | Autor | Zakończenie sprawy |
 | `DELETE /api/reports/{id}?version=0` | Autor | Fizyczne usunięcie; 204 |
@@ -236,9 +604,47 @@ Bez promienia lista jest sortowana od najnowszej publikacji, z deterministycznym
 
 Strona ma pola `content`, `page`, `size`, `totalElements`, `totalPages`. Element zawiera wszystkie pola obecnego frontendu (`id`, `title`, `type`, `category`, `location`, `date`, `color`, `description`, `owner`, `recovered`) oraz `categoryCode`, `status`, `version` i znaczniki czasu. W szczegółach pole `locationPoint` zawiera publiczne współrzędne (`latitude`, `longitude`) miejsca zdarzenia do wyświetlenia na mapie; na listach jest `null`. W szczegółach autora pole `editableLocation` zawiera etykietę i współrzędne, w innych odpowiedziach jest `null`.
 
-### Zakres kolejnego sprintu
+### Odczyt automatycznych dopasowań
 
-Automatyczne dopasowywanie zgłoszeń (matching) jest odłożone do kolejnego sprintu. Obecne API obejmuje CRUD zgłoszeń, zmianę statusu, „Moje zgłoszenia” oraz ręczne wyszukiwanie i filtrowanie listy. Nie udostępnia endpointu dopasowań ani punktacji podobieństwa.
+`GET /api/reports/{id}/matches?page=0&size=20` wymaga access tokenu autora
+wskazanego ogłoszenia. Działa po stronie LOST i FOUND; pole `report` opisuje
+drugie ogłoszenie z pary. Parametry: `page >= 0`, `size` od 1 do 100, domyślnie
+0 i 20. Odpowiedź ma pola `content`, `page`, `size`, `totalElements`, `totalPages`.
+Wyniki są sortowane malejąco po zapisanym `finalScore`, a remisy po UUID pary.
+
+Każdy element zawiera `id` pary, `status`, `finalScore`, `scores` (semantyka,
+lokalizacja, data, kategoria, pokrycie dostępnych danych), `approximateDistanceKm`,
+`daysAfterLoss`, czasy utworzenia i aktualizacji oraz skrót drugiego ogłoszenia.
+Oceny są zaokrąglone do dwóch miejsc, odległość do pełnych kilometrów
+(np. 200 metrów daje 0 km). Ocena nie jest prawdopodobieństwem własności.
+Odpowiedź nie zawiera autora, kontaktu, opisu, dokładnych współrzędnych ani danych
+wektora. Dotychczasowy publiczny endpoint szczegółów nadal udostępnia punkt mapy;
+zmiana jego polityki prywatności jest osobnym zadaniem.
+
+Odczyt uwzględnia `PROPOSED` i `CONFIRMED`, wyłącznie dla aktywnych ogłoszeń
+o aktualnych wersjach, zgodnych fingerprintach embeddingów i bieżącej wersji
+rankingu oraz progu semantyki. Ukrywa nieaktualne pary również przed ich
+wygaszeniem przez workera. Nie wywołuje AI i nie zapisuje danych. Sprawdzenie
+właściciela, strona i licznik działają w transakcji `REPEATABLE_READ`.
+
+Test ręczny: przebuduj backend, utwórz podobne LOST i FOUND z dwóch różnych
+kont, poczekaj na `COMPLETED` zadania procesu `v2`, następnie wykonaj żądanie
+z tokenem właściciela wskazanego ogłoszenia:
+
+```sh
+docker compose --profile app up -d --build backend
+
+curl --fail-with-body \
+  'http://localhost:8080/api/reports/<ID_TWOJEGO_OGLOSZENIA>/matches?page=0&size=20' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN_WLASCICIELA>'
+```
+
+Pusta lista z HTTP 200 oznacza brak aktualnych dopasowań; analiza może jeszcze
+trwać. Brak poprawnego tokenu daje 401, cudze ogłoszenie 403, brak ogłoszenia 404,
+a niepoprawna paginacja lub UUID 400. Endpoint nie wymaga nowej migracji.
+
+Kolejne etapy to decyzje użytkowników dotyczące par, powiadomienia i widok we
+frontendzie. Sam odczyt nie potwierdza odzyskania przedmiotu.
 
 ### Błędy
 
