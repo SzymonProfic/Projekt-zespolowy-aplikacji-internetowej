@@ -18,7 +18,6 @@ import './ReportCard.css';
 
 interface ReportCardProps {
   report: Report;
-  onSelect?: (report: Report) => void;
   detailsTo?: string;
   actions?: ReactNode;
 }
@@ -39,7 +38,7 @@ const dateFormatter = new Intl.DateTimeFormat('pl-PL', {
   timeZone: 'UTC',
 });
 
-export function ReportCard({ report, onSelect, detailsTo, actions }: ReportCardProps) {
+export function ReportCard({ report, detailsTo, actions }: ReportCardProps) {
   const titleId = useId();
   const { icon: Icon, variant } = categoryAppearance.get(report.category) ?? {
     icon: Package,
@@ -80,21 +79,11 @@ export function ReportCard({ report, onSelect, detailsTo, actions }: ReportCardP
             <span className="report-card__status-dot" aria-hidden="true" />
             {report.recovered ? 'Zakończone' : 'Aktywne ogłoszenie'}
           </span>
-          {detailsTo ? (
+          {detailsTo && (
             <Link className="report-card__select" to={detailsTo} aria-label={`Zobacz szczegóły: ${report.title}`}>
               Zobacz szczegóły
               <ArrowUpRight size={16} aria-hidden="true" />
             </Link>
-          ) : onSelect && (
-            <button
-              className="report-card__select"
-              type="button"
-              onClick={() => onSelect(report)}
-              aria-label={`Wybierz ogłoszenie: ${report.title}`}
-            >
-              Wybierz
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </button>
           )}
         </div>
         {actions}
