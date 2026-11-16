@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createReport, getCategories, getMyReports, getReportById, getReports, resolveReport, updateReport, type ReportFilters } from './reports';
+import { createReport, deleteReport, getCategories, getMyReports, getReportById, getReports, resolveReport, updateReport, type ReportFilters } from './reports';
 
 vi.mock('./auth', () => ({ getAccessToken: vi.fn() }));
 import { getAccessToken } from './auth';
@@ -147,4 +147,42 @@ it('tworzy i edytuje zgłoszenie z aktualnym tokenem oraz danymi JSON', async ()
   expect(updateOptions.method).toBe('PUT');
   expect(JSON.parse(updateOptions.body)).toEqual({ version: 3, content });
   expect(getAccessToken).toHaveBeenCalledTimes(2);
+});
+
+it('usuwa zgłoszenie przez DELETE z wersją w query i akceptuje pustą odpowiedź 204', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const controller = new AbortController();
+  await expect(deleteReport('report/1', 0, controller.signal)).resolves.toBeUndefined();
+  const [url, options] = fetchMock.mock.calls[0];
+  expect(new URL(url).pathname).toBe('/api/reports/report%2F1');
+  expect(new URL(url).searchParams.get('version')).toBe('0');
+  expect(options.method).toBe('DELETE');
+  expect(options.headers.get('Authorization')).toBe('Bearer access-token');
+  expect(options.headers.has('Content-Type')).toBe(false);
+  expect(options.body).toBeUndefined();
+  expect(options.signal).toBe(controller.signal);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it('bez sesji nie wysyła żądania usunięcia zgłoszenia', async () => {
+  const fetchMock = mockReports();
+  vi.mocked(getAccessToken).mockResolvedValue(null);
+  await expect(deleteReport('report-1', 3)).rejects.toMatchObject({ status: 401 });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it.each([401, 403, 404, 409, 500])('przekazuje błąd DELETE %i bez ponawiania operacji', async (status) => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ detail: 'Usunięcie odrzucone' }, { status }));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(deleteReport('report-1', 3)).rejects.toMatchObject({ status, message: 'Usunięcie odrzucone' });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it('nie ponawia usuwania po zerwaniu połączenia', async () => {
+  const failure = new TypeError('Failed to fetch');
+  const fetchMock = vi.fn().mockRejectedValue(failure);
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(deleteReport('report-1', 3)).rejects.toBe(failure);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
