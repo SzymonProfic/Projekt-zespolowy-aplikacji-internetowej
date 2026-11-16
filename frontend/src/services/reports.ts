@@ -22,6 +22,13 @@ export function resolveReport(id: string, version: number, signal?: AbortSignal)
   });
 }
 
+export function deleteReport(id: string, version: number, signal?: AbortSignal) {
+  const params = new URLSearchParams({ version: String(version) });
+  return authenticatedRequest<void>(`/api/reports/${encodeURIComponent(id)}?${params}`, {
+    method: 'DELETE', signal,
+  });
+}
+
 export interface ReportFilters {
   type: '' | 'lost' | 'found';
   status: 'ACTIVE' | 'RESOLVED' | 'ALL';

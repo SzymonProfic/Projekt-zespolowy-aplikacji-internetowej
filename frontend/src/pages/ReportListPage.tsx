@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ReportCard } from '../components/ReportCard/ReportCard';
-import { ReportStatusActions } from '../components/ReportStatusActions/ReportStatusActions';
+import { ReportActions } from '../components/ReportActions/ReportActions';
 import { LocationMap } from '../components/LocationMap/LocationMap';
 import { CitySearch } from '../components/CitySearch/CitySearch';
 import { demoReports } from '../demo/reports';
@@ -109,7 +109,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
         {mine && <Link className="report-page__back" to="/">Wróć do wszystkich ogłoszeń</Link>}
         <p className="foundly-eyebrow">{mine ? 'TWOJE KONTO' : 'ZGUBIONE I ZNALEZIONE'}</p>
         <h1>{mine ? 'Moje ogłoszenia' : 'Pomóż przedmiotom wrócić do domu.'}</h1>
-        <p>{mine ? 'Przeglądaj swoje zgłoszenia, edytuj je w szczegółach i zakończ te, które są już rozwiązane.' : 'Przeszukaj zgłoszenia i znajdź przedmiot, którego szukasz.'}</p>
+        <p>{mine ? 'Przeglądaj swoje zgłoszenia, edytuj je w szczegółach zakończ rozwiązane sprawy lub usuń niepotrzebne zgłoszenia.' : 'Przeszukaj zgłoszenia i znajdź przedmiot, którego szukasz.'}</p>
         <Link className="report-action report-action--primary foundly-heading__action" to="/ogloszenia/nowe">
           <Plus size={17} aria-hidden="true" /> Dodaj zgłoszenie
         </Link>
@@ -194,8 +194,13 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
           <div className="results__grid">
             {mine ? reports.map((report) => (
               <ReportCard key={report.id} report={report} detailsTo={`/ogloszenia/${report.id}`}
-                actions={<ReportStatusActions report={report}
+                actions={<ReportActions report={report}
                   onRefresh={() => setAttempt((value) => value + 1)}
+                  onDeleted={() => {
+                    setReports((current) => current.filter((item) => item.id !== report.id));
+                    setStatusMessage(`Zgłoszenie „${report.title}” zostało usunięte.`);
+                    setAttempt((value) => value + 1);
+                  }}
                   onResolved={(updated) => {
                     setReports((current) => current.map((item) => item.id === updated.id ? updated : item));
                     setStatusMessage(`Zgłoszenie „${updated.title}” zostało zakończone.`);

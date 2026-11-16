@@ -36,7 +36,7 @@ Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backe
 | Adres | Działanie |
 | --- | --- |
 | `/` | Lista i filtry ogłoszeń. Przykładowe karty mogą pojawić się przy pustych wynikach i nie mają adresów w API. |
-| `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Autor może zakończyć aktywne zgłoszenie po potwierdzeniu. Wejście przez „Twoje konto” w nagłówku. |
+| `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Autor może zakończyć aktywne zgłoszenie lub usunąć własne zgłoszenie po potwierdzeniu. Wejście przez „Twoje konto” w nagłówku. |
 | `/ogloszenia/:id` | Publiczny odczyt szczegółów. Przycisk „Edytuj zgłoszenie” widzi autor aktywnego zgłoszenia. |
 | `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
 | `/ogloszenia/:id/edytuj` | Edycja aktywnego zgłoszenia przez autora. Typ zgłoszenia pozostaje bez zmian. |
@@ -54,6 +54,8 @@ Pole „Miejsce zdarzenia” w formularzu tworzenia i edycji korzysta z tych sam
 Frontend wysyła wpisany tekst oraz wybrany punkt, a bez ręcznego wyboru — orientacyjny punkt miasta z dołączonego wykazu. Wykaz pochodzi z warstwy urzędowych nazw miejscowości według stanu z 12 listopada 2026 r. Edycja pozostałych pól zachowuje dotychczasowy punkt. [Państwowy Rejestr Nazw Geograficznych GUGiK](https://www.geoportal.gov.pl/pl/dane/panstwowy-rejestr-nazw-geograficznych-prng/)
 
 Po zapisie aplikacja przechodzi do szczegółów i potwierdza powodzenie. Brak zgłoszenia ma własny widok, a błędy zapisu pozostawiają dane w formularzu. Edycja przekazuje numer wersji otrzymany z API; przy konflikcie `409` trzeba wrócić do szczegółów i pobrać aktualne dane. [Format żądań dodawania i edycji](../foundly-backend/README.md#dodanie-i-edycja).
+
+W „Moich ogłoszeniach” przycisk „Usuń zgłoszenie” jest dostępny dla autora zarówno przy aktywnych, jak i zakończonych zgłoszeniach. Usunięcie wymaga osobnego potwierdzenia i jest trwałe. Frontend wysyła `DELETE /api/reports/{id}?version=…` z aktualnym tokenem przez wspólną warstwę API. Po odpowiedzi `204` usuwa kartę, potwierdza operację i odświeża wyniki oraz liczniki; po opróżnieniu ostatniej strony wraca na ostatnią istniejącą stronę. Przy konflikcie wersji należy odświeżyć listę przed kolejną próbą. Błędy nie usuwają karty i nie powodują automatycznego ponowienia operacji.
 
 ## Struktura źródeł
 
