@@ -9,7 +9,7 @@ Dokument proponuje model dla backendu Java 21 / Spring Boot / Spring Data JPA or
 Podstawą są:
 
 - [główne README](../README.md): konta, CRUD zgłoszeń, wyszukiwanie, „Moje zgłoszenia”, odzyskanie przedmiotu i podstawowe dopasowywanie;
-- [README frontendu](../frontend/README.md), [typ Report](../frontend/src/types/report.ts), [ReportCard](../frontend/src/components/ReportCard/ReportCard.tsx) i [dane demonstracyjne](../frontend/src/demo/reports.ts).
+- [README frontendu](../frontend/README.md), [typ Report](../frontend/src/types/report.ts) i [ReportCard](../frontend/src/components/ReportCard/ReportCard.tsx).
 
 Frontend implementuje podgląd trzech kart oraz logowanie Keycloak i synchronizację własnego profilu z API. Formularze zgłoszeń, wyszukiwarka i pobieranie kart z API pozostają do wdrożenia. Karta używa kategorii, tekstowej lokalizacji, daty zdarzenia i flagi zakończenia; ikony są elementem prezentacji, nie zdjęciami przedmiotów.
 

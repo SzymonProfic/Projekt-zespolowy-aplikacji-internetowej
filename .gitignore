@@ -13,6 +13,7 @@ __pycache__/
 *.log
 
 # Lokalna konfiguracja środowiska
+.venv/
 .env
 .env.*
 !.env.example
