@@ -1,7 +1,8 @@
+import { ApiError } from '../../services/apiClient';
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getAccessToken, getAuthSnapshot, login, subscribeAuth } from '../../services/auth';
-import { createReport, getCategories, ReportRequestError, updateReport } from '../../services/reports';
+import { getAuthSnapshot, login, subscribeAuth } from '../../services/auth';
+import { createReport, getCategories, updateReport } from '../../services/reports';
 import type { Category } from '../../types/report';
 import { getReportFormPoint, todayInWarsaw, validateReportForm, type ReportFormErrors, type ReportFormField, type ReportFormValues } from '../../utils/reportForm';
 import { LocationMap } from '../LocationMap/LocationMap';
@@ -42,7 +43,7 @@ function Field({ id, label, required, error, children }: {
 }
 
 function saveErrorMessage(error: unknown) {
-  if (!(error instanceof ReportRequestError)) return 'Nie udało się połączyć z serwerem. Spróbuj ponownie.';
+  if (!(error instanceof ApiError)) return 'Nie udało się połączyć z serwerem. Spróbuj ponownie.';
   if (error.status === 400) return 'Serwer odrzucił zgłoszenie. Sprawdź wprowadzone dane i spróbuj ponownie.';
   if (error.status === 401) return 'Zaloguj się ponownie, aby zapisać zgłoszenie.';
   if (error.status === 403) return 'Nie masz uprawnień do zapisania tego zgłoszenia.';
@@ -112,12 +113,9 @@ export function ReportForm({ editing }: ReportFormProps) {
     activeSave.current = controller;
     setSaving(true);
     try {
-      const accessToken = await getAccessToken();
-      if (controller.signal.aborted) return;
-      if (!accessToken) throw new ReportRequestError(401, 'Brak aktywnej sesji');
       const saved = editing
-        ? await updateReport(editing.id, { version: editing.version, content: validation.content }, accessToken, controller.signal)
-        : await createReport({ type: values.type, ...validation.content }, accessToken, controller.signal);
+        ? await updateReport(editing.id, { version: editing.version, content: validation.content }, controller.signal)
+        : await createReport({ type: values.type, ...validation.content }, controller.signal);
       if (!controller.signal.aborted) {
         navigate(`/ogloszenia/${saved.id}`, { replace: true, state: { reportSaved: editing ? 'updated' : 'created' } });
       }
@@ -125,7 +123,7 @@ export function ReportForm({ editing }: ReportFormProps) {
       if (!controller.signal.aborted) {
         setSubmitError({
           message: saveErrorMessage(error),
-          status: error instanceof ReportRequestError ? error.status : undefined,
+          status: error instanceof ApiError ? error.status : undefined,
         });
       }
     } finally {

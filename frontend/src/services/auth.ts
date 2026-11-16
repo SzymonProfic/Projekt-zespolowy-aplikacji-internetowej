@@ -1,4 +1,5 @@
 import Keycloak from 'keycloak-js';
+import { apiRequest } from './apiClient';
 
 export interface Profile {
   id: string;
@@ -16,7 +17,6 @@ interface AuthSnapshot {
   error: string | null;
 }
 
-const apiUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
 let snapshot: AuthSnapshot = { status: 'loading', signedIn: false, profile: null, error: null };
 let client: Keycloak | undefined;
 let initialization: Promise<void> | undefined;
@@ -42,13 +42,11 @@ async function synchronizeProfile() {
   const current = ++generation;
   publish({ status: 'synchronizing', signedIn: true, profile: null, error: null });
   try {
-    const response = await fetch(`${apiUrl}/api/me`, {
+    // Use the existing token directly: getAccessToken() waits for this initialization.
+    const profile = await apiRequest<Profile>('/api/me', {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
+      accessToken: token,
     });
-    if (!response.ok) throw new Error('Profile synchronization failed');
-    const profile: Profile = await response.json();
     if (current === generation && client.authenticated) {
       publish({ status: 'ready', signedIn: true, profile, error: null });
     }
