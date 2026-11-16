@@ -1,6 +1,6 @@
+import { ApiError } from '../services/apiClient';
 import { useEffect, useState } from 'react';
-import { getAccessToken } from '../services/auth';
-import { getReportById, ReportRequestError } from '../services/reports';
+import { getReportById } from '../services/reports';
 import type { ReportDetails } from '../types/report';
 
 type DetailState =
@@ -26,12 +26,10 @@ export function useReportDetails(id: string) {
       }
 
       try {
-        const accessToken = await getAccessToken();
-        if (controller.signal.aborted) return;
-        const report = await getReportById(id, accessToken, controller.signal);
+        const report = await getReportById(id, controller.signal);
         finish({ status: 'found', report });
       } catch (error) {
-        finish({ status: error instanceof ReportRequestError && error.status === 404 ? 'not-found' : 'error' });
+        finish({ status: error instanceof ApiError && error.status === 404 ? 'not-found' : 'error' });
       }
     }
 

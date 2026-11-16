@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   ArrowUpRight,
   Backpack,
@@ -20,6 +20,7 @@ interface ReportCardProps {
   report: Report;
   onSelect?: (report: Report) => void;
   detailsTo?: string;
+  actions?: ReactNode;
 }
 
 const categoryAppearance = new Map<string, { icon: LucideIcon; variant: string }>([
@@ -38,7 +39,7 @@ const dateFormatter = new Intl.DateTimeFormat('pl-PL', {
   timeZone: 'UTC',
 });
 
-export function ReportCard({ report, onSelect, detailsTo }: ReportCardProps) {
+export function ReportCard({ report, onSelect, detailsTo, actions }: ReportCardProps) {
   const titleId = useId();
   const { icon: Icon, variant } = categoryAppearance.get(report.category) ?? {
     icon: Package,
@@ -96,6 +97,7 @@ export function ReportCard({ report, onSelect, detailsTo }: ReportCardProps) {
             </button>
           )}
         </div>
+        {actions}
       </div>
     </article>
   );

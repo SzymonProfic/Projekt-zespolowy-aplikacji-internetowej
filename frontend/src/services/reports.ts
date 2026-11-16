@@ -1,52 +1,31 @@
-import type { Category, CreateReportRequest, Report, ReportDetails, ReportLocationPoint, UpdateReportRequest } from '../types/report';
+import type { Category, CreateReportRequest, ReportDetails, ReportLocationPoint, UpdateReportRequest } from '../types/report';
+import { apiRequest } from './apiClient';
+import { authenticatedRequest } from './authenticatedApi';
 
-const apiUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
-
-export class ReportRequestError extends Error {
-  constructor(public readonly status: number, message: string) {
-    super(message);
-    this.name = 'ReportRequestError';
-  }
+export function getReportById(id: string, signal?: AbortSignal) {
+  return authenticatedRequest<ReportDetails>(`/api/reports/${encodeURIComponent(id)}`, { auth: 'optional', signal });
 }
 
-async function requestReport(
-  path: string,
-  { accessToken, ...options }: RequestInit & { accessToken?: string | null } = {},
-): Promise<ReportDetails> {
-  const headers = new Headers(options.headers);
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  if (options.body) headers.set('Content-Type', 'application/json');
-
-  const response = await fetch(`${apiUrl}${path}`, { ...options, headers, cache: 'no-store' });
-  if (!response.ok) {
-    const problem: unknown = await response.json().catch(() => null);
-    const detail = problem && typeof problem === 'object' && 'detail' in problem && typeof problem.detail === 'string'
-      ? problem.detail
-      : 'Nie udało się wykonać operacji.';
-    throw new ReportRequestError(response.status, detail);
-  }
-  return response.json() as Promise<ReportDetails>;
+export function createReport(report: CreateReportRequest, signal?: AbortSignal) {
+  return authenticatedRequest<ReportDetails>('/api/reports', { method: 'POST', json: report, signal });
 }
 
-export function getReportById(id: string, accessToken: string | null, signal?: AbortSignal) {
-  return requestReport(`/api/reports/${encodeURIComponent(id)}`, { accessToken, signal });
-}
-
-export function createReport(report: CreateReportRequest, accessToken: string, signal?: AbortSignal) {
-  return requestReport('/api/reports', {
-    method: 'POST',
-    body: JSON.stringify(report),
-    accessToken,
-    signal,
+export function updateReport(id: string, report: UpdateReportRequest, signal?: AbortSignal) {
+  return authenticatedRequest<ReportDetails>(`/api/reports/${encodeURIComponent(id)}`, {
+    method: 'PUT', json: report, signal,
   });
 }
 
-export function updateReport(id: string, report: UpdateReportRequest, accessToken: string, signal?: AbortSignal) {
-  return requestReport(`/api/reports/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify(report),
-    accessToken,
-    signal,
+export function resolveReport(id: string, version: number, signal?: AbortSignal) {
+  return authenticatedRequest<ReportDetails>(`/api/reports/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH', json: { version, status: 'RESOLVED' }, signal,
+  });
+}
+
+export function deleteReport(id: string, version: number, signal?: AbortSignal) {
+  const params = new URLSearchParams({ version: String(version) });
+  return authenticatedRequest<void>(`/api/reports/${encodeURIComponent(id)}?${params}`, {
+    method: 'DELETE', signal,
   });
 }
 
@@ -60,20 +39,18 @@ export interface ReportFilters {
 }
 
 interface ReportPage {
-  content: Report[];
+  content: ReportDetails[];
   page: number;
   size: number;
   totalElements: number;
   totalPages: number;
 }
 
-export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
-  const response = await fetch(`${apiUrl}/api/categories`, { cache: 'no-store', signal });
-  if (!response.ok) throw new Error('Categories unavailable');
-  return response.json() as Promise<Category[]>;
+export function getCategories(signal?: AbortSignal) {
+  return apiRequest<Category[]>('/api/categories', { signal });
 }
 
-async function requestReports(path: string, filters: ReportFilters, page: number, signal?: AbortSignal, accessToken?: string): Promise<ReportPage> {
+function reportSearchParams(filters: ReportFilters, page: number) {
   const params = new URLSearchParams({ page: String(page), size: '12', status: filters.status });
   if (filters.type) params.set('type', filters.type);
   if (filters.categoryCode) params.set('categoryCode', filters.categoryCode);
@@ -82,18 +59,13 @@ async function requestReports(path: string, filters: ReportFilters, page: number
     params.set('longitude', String(filters.center.longitude));
     params.set('radiusMeters', String(filters.radiusKm * 1000));
   }
-  const headers = new Headers();
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  const response = await fetch(`${apiUrl}${path}?${params.toString()}`, { cache: 'no-store', headers, signal });
-  if (!response.ok) throw new ReportRequestError(response.status, 'Reports unavailable');
-  return response.json() as Promise<ReportPage>;
+  return params.toString();
 }
 
 export function getReports(filters: ReportFilters, page: number, signal?: AbortSignal) {
-  return requestReports('/api/reports', filters, page, signal);
+  return apiRequest<ReportPage>(`/api/reports?${reportSearchParams(filters, page)}`, { signal });
 }
 
-export function getMyReports(filters: ReportFilters, page: number, accessToken: string, signal?: AbortSignal) {
-  if (!accessToken) return Promise.reject(new ReportRequestError(401, 'Brak aktywnej sesji'));
-  return requestReports('/api/reports/mine', filters, page, signal, accessToken);
+export function getMyReports(filters: ReportFilters, page: number, signal?: AbortSignal) {
+  return authenticatedRequest<ReportPage>(`/api/reports/mine?${reportSearchParams(filters, page)}`, { signal });
 }
