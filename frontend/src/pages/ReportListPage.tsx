@@ -6,7 +6,6 @@ import { ReportCard } from '../components/ReportCard/ReportCard';
 import { ReportActions } from '../components/ReportActions/ReportActions';
 import { LocationMap } from '../components/LocationMap/LocationMap';
 import { CitySearch } from '../components/CitySearch/CitySearch';
-import { demoReports } from '../demo/reports';
 import { getCategories, getMyReports, getReports, type ReportFilters } from '../services/reports';
 import { login } from '../services/auth';
 import type { Category, ReportDetails } from '../types/report';
@@ -31,16 +30,6 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [unauthorized, setUnauthorized] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-
-  const displayedReports = !mine && reports.length === 0 && totalElements === 0 && !appliedFilters.center
-    ? demoReports.filter((report) => {
-      const statusMatches = appliedFilters.status === 'ALL' || (appliedFilters.status === 'RESOLVED' ? report.recovered : !report.recovered);
-      const typeMatches = !appliedFilters.type || report.type === appliedFilters.type;
-      const categoryMatches = !appliedFilters.categoryCode || categories.find((category) => category.code === appliedFilters.categoryCode)?.name === report.category;
-      return statusMatches && typeMatches && categoryMatches;
-    })
-    : reports;
-  const showingDemoReports = displayedReports !== reports;
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => setError('Nie udało się pobrać kategorii.'));
@@ -178,7 +167,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
 
       <section className="results" aria-live="polite">
         {statusMessage && <p className="results__message" role="status">{statusMessage}</p>}
-        <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{showingDemoReports ? `${displayedReports.length} przykładowe` : `${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
+        <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{`${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
         {appliedFilters.center && <p className="results__area">Obszar wyszukiwania: {appliedFilters.centerLabel}, w promieniu {radiusFormatter.format(appliedFilters.radiusKm)} km. Najbliższe ogłoszenia najpierw.</p>}
         {error && <div className="results__message results__message--error" role="alert">
           <p>{error}</p>
@@ -188,13 +177,12 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
           }}>{unauthorized ? 'Zaloguj się' : 'Spróbuj ponownie'}</button>
         </div>}
         {loading && <div className="results__message">Ładowanie ogłoszeń…</div>}
-        {!loading && !error && showingDemoReports && <p className="results__demo-note">To przykładowe zgłoszenia do podglądu. Rzeczywiste ogłoszenia pojawią się po dodaniu ich w aplikacji.</p>}
-        {!loading && !error && displayedReports.length === 0 && <div className="results__message">{mine ? 'Nie masz ogłoszeń spełniających wybrane kryteria. Dodaj zgłoszenie lub zmień filtry.' : 'Nie znaleziono ogłoszeń spełniających wybrane kryteria.'}</div>}
-        {!loading && !error && displayedReports.length > 0 && (
+        {!loading && !error && reports.length === 0 && <div className="results__message">{mine ? 'Nie masz ogłoszeń spełniających wybrane kryteria. Dodaj zgłoszenie lub zmień filtry.' : 'Nie znaleziono ogłoszeń spełniających wybrane kryteria.'}</div>}
+        {!loading && !error && reports.length > 0 && (
           <div className="results__grid">
-            {mine ? reports.map((report) => (
+            {reports.map((report) => (
               <ReportCard key={report.id} report={report} detailsTo={`/ogloszenia/${report.id}`}
-                actions={<ReportActions report={report}
+                actions={mine ? <ReportActions report={report}
                   onRefresh={() => setAttempt((value) => value + 1)}
                   onDeleted={() => {
                     setReports((current) => current.filter((item) => item.id !== report.id));
@@ -205,17 +193,11 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
                     setReports((current) => current.map((item) => item.id === updated.id ? updated : item));
                     setStatusMessage(`Zgłoszenie „${updated.title}” zostało zakończone.`);
                     setAttempt((value) => value + 1);
-                  }} />} />
-            )) : displayedReports.map((report) => (
-              <ReportCard
-                key={report.id}
-                report={report}
-                detailsTo={showingDemoReports ? undefined : `/ogloszenia/${report.id}`}
-              />
+                  }} /> : undefined} />
             ))}
           </div>
         )}
-        {!loading && !error && !showingDemoReports && totalPages > 1 && <nav className="pagination" aria-label="Stronicowanie wyników"><button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Poprzednia</button><span>Strona {page + 1} z {totalPages}</span><button type="button" disabled={page + 1 >= totalPages} onClick={() => setPage((value) => value + 1)}>Następna</button></nav>}
+        {!loading && !error && totalPages > 1 && <nav className="pagination" aria-label="Stronicowanie wyników"><button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Poprzednia</button><span>Strona {page + 1} z {totalPages}</span><button type="button" disabled={page + 1 >= totalPages} onClick={() => setPage((value) => value + 1)}>Następna</button></nav>}
       </section>
     </>
   );

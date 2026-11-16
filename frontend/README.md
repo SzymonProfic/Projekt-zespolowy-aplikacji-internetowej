@@ -35,7 +35,7 @@ Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backe
 
 | Adres | Działanie |
 | --- | --- |
-| `/` | Lista i filtry ogłoszeń. Przykładowe karty mogą pojawić się przy pustych wynikach i nie mają adresów w API. |
+| `/` | Lista i filtry ogłoszeń pobieranych wyłącznie z API. Przy pustych wynikach pojawia się komunikat o braku ogłoszeń. |
 | `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Autor może zakończyć aktywne zgłoszenie lub usunąć własne zgłoszenie po potwierdzeniu. Wejście przez „Twoje konto” w nagłówku. |
 | `/ogloszenia/:id` | Publiczny odczyt szczegółów. Przycisk „Edytuj zgłoszenie” widzi autor aktywnego zgłoszenia. |
 | `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
@@ -66,8 +66,6 @@ src/
 │   ├── ReportCard/          # Karta ogłoszenia
 │   ├── ReportForm/          # Wspólny formularz dodawania i edycji
 │   └── ReportPage/          # Ramka widoków i komunikaty pobierania
-├── demo/
-│   └── reports.ts           # Trzy przykładowe ogłoszenia
 ├── hooks/                   # Pobieranie szczegółów, ponawianie i anulowanie żądań
 ├── pages/                   # Lista, szczegóły, dodawanie i edycja
 ├── services/                # Wywołania API i sesja Keycloak
