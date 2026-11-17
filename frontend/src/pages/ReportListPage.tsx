@@ -12,6 +12,7 @@ import type { Category, ReportDetails } from '../types/report';
 
 const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', centerLabel: '', center: null, radiusKm: 5 };
 const radiusFormatter = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 });
+type CategoryLoadState = 'loading' | 'ready' | 'error';
 
 export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const defaultFilters: ReportFilters = mine ? { ...emptyFilters, status: 'ALL' } : emptyFilters;
@@ -21,6 +22,8 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [locationError, setLocationError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryLoadState, setCategoryLoadState] = useState<CategoryLoadState>('loading');
+  const [categoryAttempt, setCategoryAttempt] = useState(0);
   const [reports, setReports] = useState<ReportDetails[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -32,8 +35,19 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
-    getCategories().then(setCategories).catch(() => setError('Nie udało się pobrać kategorii.'));
-  }, []);
+    const controller = new AbortController();
+    setCategoryLoadState('loading');
+    getCategories(controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setCategories(items);
+        setCategoryLoadState('ready');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCategoryLoadState('error');
+      });
+    return () => controller.abort();
+  }, [categoryAttempt]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -112,7 +126,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
           <div className="filters__grid">
           <label className="filter-field"><span>Rodzaj zgłoszenia</span><select value={filters.type} onChange={(event) => changeFilter('type', event.target.value as ReportFilters['type'])}><option value="">Wszystkie</option><option value="lost">Zgubione</option><option value="found">Znalezione</option></select></label>
           <label className="filter-field"><span>Status</span><select value={filters.status} onChange={(event) => changeFilter('status', event.target.value as ReportFilters['status'])}><option value="ACTIVE">Aktywne</option><option value="RESOLVED">Zakończone</option><option value="ALL">Wszystkie</option></select></label>
-          <label className="filter-field"><span>Kategoria</span><select value={filters.categoryCode} onChange={(event) => changeFilter('categoryCode', event.target.value)}><option value="">Wszystkie kategorie</option>{categories.map((category) => <option key={category.code} value={category.code}>{category.name}</option>)}</select></label>
+          <label className="filter-field"><span>Kategoria</span><select value={filters.categoryCode} disabled={categoryLoadState !== 'ready'} onChange={(event) => changeFilter('categoryCode', event.target.value)}><option value="">{categoryLoadState === 'loading' ? 'Ładowanie kategorii…' : 'Wszystkie kategorie'}</option>{categories.map((category) => <option key={category.code} value={category.code}>{category.name}</option>)}</select></label>
           <CitySearch value={locationQuery} error={locationError}
             onChange={(query) => {
               setLocationQuery(query);
@@ -126,6 +140,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
               setMapOpen(true);
             }} />
           </div>
+          {categoryLoadState === 'error' && <div className="filters__category-error" role="alert"><span>Nie udało się pobrać kategorii.</span><button className="filters__clear" type="button" onClick={() => setCategoryAttempt((value) => value + 1)}>Ponów pobieranie kategorii</button></div>}
           <details className="filters__spatial" open={mapOpen} onToggle={(event) => setMapOpen(event.currentTarget.open)}>
             <summary>Mapa i promień wyszukiwania{filters.center ? ` · ${radiusFormatter.format(filters.radiusKm)} km` : ''}</summary>
             <p className="filters__map-help">
