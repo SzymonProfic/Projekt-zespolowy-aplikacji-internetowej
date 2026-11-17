@@ -49,6 +49,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .filters__radius .filter-field { flex: 1 1 220px; }
 .filters__radius input[type="range"] { min-height: 28px; padding: 0; accent-color: #176f60; cursor: pointer; }
 .filters__clear:disabled { color: #9aa59b; cursor: default; }
+.filters__category-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 10px 12px; border: 1px solid #efc7c2; border-radius: 7px; background: #fff8f7; color: #96372d; font-size: 12px; }
 
 .results { margin-top: 36px; }
 .results__heading { margin-bottom: 18px; }
@@ -75,6 +76,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .filters__summary { min-height: 60px; padding: 0 16px; font-size: 16px; }
   .filters__content { padding: 0 16px 4px; }
   .filters__grid { grid-template-columns: 1fr; gap: 13px; margin-top: 16px; }
+  .filters__category-error { align-items: flex-start; flex-direction: column; }
   .filters__actions { justify-content: flex-end; }
   .filters__submit { width: auto; }
   .results__grid { grid-template-columns: 1fr; gap: 16px; }

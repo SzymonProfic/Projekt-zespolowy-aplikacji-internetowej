@@ -77,7 +77,6 @@ export function LocationMap({ point, label, onChange, radiusMeters }: LocationMa
         interactive: false,
       }).addTo(instance);
     } else circle.current.setLatLng(position).setRadius(radiusMeters);
-    instance.fitBounds(circle.current.getBounds(), { padding: [24, 24], maxZoom: 15, animate: false });
   }, [latitude, longitude, radiusMeters]);
 
   useEffect(() => {
