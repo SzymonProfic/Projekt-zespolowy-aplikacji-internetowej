@@ -877,7 +877,11 @@ class ReportApiTests {
         assertThat(match.path("report").path("type").asText()).isEqualTo("found");
         assertThat(match.path("report").path("categoryCode").asText()).isEqualTo("KEYS");
         assertThat(match.path("report").path("location").asText()).isEqualTo("Kraków, Stare Miasto");
-        assertThat(match.path("approximateDistanceKm").asLong()).isZero();
+        assertThat(match.path("approximateDistanceMeters").isIntegralNumber()).isTrue();
+        assertThat(match.path("approximateDistanceMeters").asLong()).isBetween(70L, 75L);
+        assertThat(match.path("approximateDistanceMeters").asLong())
+                .isEqualTo(Math.round(((Number) before.get("distance_meters")).doubleValue()));
+        assertThat(match.has("approximateDistanceKm")).isFalse();
         assertThat(match.path("daysAfterLoss").asLong()).isEqualTo(1);
         double score = match.path("finalScore").asDouble();
         assertThat(score).isBetween(0.0, 1.0);

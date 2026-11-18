@@ -58,7 +58,7 @@ public class ReportMatchReadRepository {
                             rounded(row.getDouble("final_score")), new ReportMatchResponse.Scores(
                             rounded(row.getDouble("semantic_score")), rounded(row.getObject("location_score", Double.class)),
                             rounded(row.getObject("date_score", Double.class)), rounded(row.getObject("category_score", Double.class)),
-                            rounded(row.getDouble("evidence_coverage"))), distance == null ? null : Math.round(distance / 1000.0),
+                            rounded(row.getDouble("evidence_coverage"))), distance == null ? null : Math.round(distance),
                             row.getObject("days_after_loss", Long.class), row.getTimestamp("created_at").toInstant(),
                             row.getTimestamp("updated_at").toInstant(), new ReportMatchResponse.MatchedReport(
                             row.getObject("report_id", UUID.class), row.getString("title"), row.getString("type").toLowerCase(Locale.ROOT),

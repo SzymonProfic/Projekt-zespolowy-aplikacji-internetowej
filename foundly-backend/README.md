@@ -613,10 +613,10 @@ drugie ogłoszenie z pary. Parametry: `page >= 0`, `size` od 1 do 100, domyślni
 Wyniki są sortowane malejąco po zapisanym `finalScore`, a remisy po UUID pary.
 
 Każdy element zawiera `id` pary, `status`, `finalScore`, `scores` (semantyka,
-lokalizacja, data, kategoria, pokrycie dostępnych danych), `approximateDistanceKm`,
+lokalizacja, data, kategoria, pokrycie dostępnych danych), `approximateDistanceMeters`,
 `daysAfterLoss`, czasy utworzenia i aktualizacji oraz skrót drugiego ogłoszenia.
-Oceny są zaokrąglone do dwóch miejsc, odległość do pełnych kilometrów
-(np. 200 metrów daje 0 km). Ocena nie jest prawdopodobieństwem własności.
+Oceny są zaokrąglone do dwóch miejsc, odległość do pełnych metrów
+(np. 90,67 metra daje 91 m). Ocena nie jest prawdopodobieństwem własności.
 Odpowiedź nie zawiera autora, kontaktu, opisu, dokładnych współrzędnych ani danych
 wektora. Dotychczasowy publiczny endpoint szczegółów nadal udostępnia punkt mapy;
 zmiana jego polityki prywatności jest osobnym zadaniem.
