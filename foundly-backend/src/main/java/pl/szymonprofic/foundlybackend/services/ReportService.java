@@ -24,6 +24,8 @@ public class ReportService {
     private final ReportRepository reports;
     private final CategoryRepository categories;
     private final CurrentUserService users;
+    private final MatchingJobService matchingJobs;
+    private final ReportMatchService reportMatches;
     private final Clock clock;
     private static final GeometryFactory GEOMETRY = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -49,6 +51,7 @@ public class ReportService {
         var report = new Report(author, ReportType.valueOf(request.type().toUpperCase(Locale.ROOT)), clock.instant());
         apply(report, request.content());
         Report persisted = reports.saveAndFlush(report);
+        matchingJobs.schedule(persisted.getId(), persisted.getVersion());
         return response(persisted, jwt, true);
     }
 
@@ -60,6 +63,8 @@ public class ReportService {
             throw error(HttpStatus.CONFLICT, "Zakończonego zgłoszenia nie można edytować");
         apply(report, request.content());
         reports.flush();
+        matchingJobs.schedule(report.getId(), report.getVersion());
+        reportMatches.expireForReport(report.getId());
         return response(report, jwt, true);
     }
 
@@ -71,6 +76,7 @@ public class ReportService {
         checkVersion(report, request.version());
         report.resolve(clock.instant());
         reports.flush();
+        reportMatches.expireForReport(report.getId());
         return response(report, jwt, true);
     }
 

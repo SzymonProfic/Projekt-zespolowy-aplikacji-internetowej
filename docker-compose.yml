@@ -1,7 +1,7 @@
-# Środowisko lokalne: PostGIS + Keycloak. Backend kontenerowy: --profile app.
+# Środowisko lokalne: PostGIS + Keycloak + embedding-service. Backend kontenerowy: --profile app.
 services:
   db:
-    image: postgis/postgis:18-3.6
+    build: ./docker/postgres
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-foundly}
@@ -70,6 +70,21 @@ services:
       keycloak:
         condition: service_started
 
+  embedding-service:
+    build: ./embedding-service
+    init: true
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - embedding_model_cache:/home/app/.cache/huggingface
+    healthcheck:
+      # Serwer otwiera port dopiero po pobraniu i załadowaniu modelu.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10m
+      retries: 5
+
   backend:
     profiles: ["app"]
     build: ./foundly-backend
@@ -80,6 +95,14 @@ services:
       KEYCLOAK_ISSUER: http://localhost:8081/realms/foundly
       KEYCLOAK_JWKS: http://keycloak:8080/realms/foundly/protocol/openid-connect/certs
       CORS_ORIGINS: http://localhost:5173
+      EMBEDDING_BASE_URL: http://embedding-service:8000
+      EMBEDDING_CONNECT_TIMEOUT: ${EMBEDDING_CONNECT_TIMEOUT:-2s}
+      EMBEDDING_READ_TIMEOUT: ${EMBEDDING_READ_TIMEOUT:-30s}
+      MATCHING_LEASE_DURATION: ${MATCHING_LEASE_DURATION:-2m}
+      MATCHING_ENABLED: ${MATCHING_ENABLED:-true}
+      MATCHING_POLL_INTERVAL: ${MATCHING_POLL_INTERVAL:-1s}
+      MATCHING_RETRY_DELAY: ${MATCHING_RETRY_DELAY:-5s}
+      MATCHING_MAX_ATTEMPTS: ${MATCHING_MAX_ATTEMPTS:-5}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -92,3 +115,4 @@ volumes:
   # Nowy wolumen PostGIS; poprzedni postgres_data pozostaje na dysku bez zmian.
   postgis_data:
   keycloak_data:
+  embedding_model_cache:
