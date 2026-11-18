@@ -2,322 +2,213 @@
 
 **Internetowy system zgłaszania, wyszukiwania i odzyskiwania zagubionych oraz znalezionych przedmiotów.**
 
-Foundly ma połączyć osoby, które zgubiły przedmiot, z osobami, które go znalazły. Aplikacja umożliwi publikowanie zgłoszeń, przeszukiwanie ogłoszeń oraz wskazywanie potencjalnych dopasowań na podstawie cech przedmiotu, lokalizacji i daty zdarzenia.
+Foundly pozwala publikować zgłoszenia zagubienia i znalezienia przedmiotów, przeglądać ogłoszenia oraz zarządzać własnymi zgłoszeniami. Frontend korzysta z REST API; dane są przechowywane w PostgreSQL z PostGIS, a rejestrację i logowanie obsługuje Keycloak.
 
-Projekt powstaje w ramach przedmiotu **„Projekt zespołowy aplikacji internetowej”** na **Politechnice Częstochowskiej, w Katedrze Informatyki**, w roku akademickim **2026/2027**. Realizuje go trzyosobowy zespół, którego celem jest przygotowanie funkcjonalnego MVP.
+Projekt powstaje w ramach przedmiotu **„Projekt zespołowy aplikacji internetowej”** na **Politechnice Częstochowskiej, w Katedrze Informatyki**, w roku akademickim **2026/2027**. Realizuje go trzyosobowy zespół.
 
-> **Status: wstępne REST API i demonstracja kart frontendu.** Backend zawiera zgłoszenia, kategorie, profil Keycloak, wyszukiwanie PostGIS. Automatyczne dopasowywanie jest odłożone do kolejnego sprintu. Aktualny kontrakt, konfiguracja i uruchomienie: [README backendu](foundly-backend/README.md). Frontend ma logowanie Keycloak i synchronizację profilu przez API; karty nadal korzystają z danych demonstracyjnych. Poniższy plan projektu oraz starsze instrukcje wdrożenia wymagają dalszej aktualizacji; backend nie korzysta już z H2.
+## Aktualny zakres
 
-## Spis treści
+W kodzie opartym na `main` działają:
 
-- [Cel i sposób działania](#cel-i-sposób-działania)
-- [Zakres MVP](#zakres-mvp)
-- [Dalszy rozwój](#dalszy-rozwój)
-- [Architektura](#architektura)
-- [Technologie](#technologie)
-- [Dopasowywanie zgłoszeń](#dopasowywanie-zgłoszeń)
-- [Struktura repozytorium](#struktura-repozytorium)
-- [Uruchomienie lokalne](#uruchomienie-lokalne)
-- [REST API](#rest-api)
-- [Jakość i testowanie](#jakość-i-testowanie)
-- [Organizacja pracy](#organizacja-pracy)
-- [Harmonogram](#harmonogram)
-- [Dokumentacja](#dokumentacja)
+- rejestracja, logowanie i wylogowanie przez Keycloak oraz synchronizacja profilu użytkownika;
+- publiczna lista ogłoszeń i widok szczegółów, pobierane wyłącznie z API;
+- dodawanie zgłoszeń typu `lost` i `found` oraz edycja aktywnych zgłoszeń przez autora;
+- widok „Moje ogłoszenia” z filtrami i paginacją;
+- kończenie i trwałe usuwanie własnych zgłoszeń z potwierdzeniem w interfejsie;
+- filtrowanie listy po typie, statusie, kategorii i obszarze na mapie;
+- podpowiedzi polskich miast i wybór miejsca zdarzenia na mapie Leaflet;
+- walidacja danych, kontrola właściciela i wykrywanie konfliktów wersji;
+- dokumentacja OpenAPI i Swagger UI;
+- uruchamianie bazy, Keycloak i backendu przez Docker Compose.
 
-## Cel i sposób działania
+Zgłoszenie ma status `ACTIVE` lub `RESOLVED`. Dostępne przejście to `ACTIVE → RESOLVED`; zakończonego zgłoszenia nie można edytować ani ponownie otworzyć. Autor może usunąć zarówno aktywne, jak i zakończone zgłoszenie. `ALL` jest opcją filtrowania, a `lost` i `found` określają typ zgłoszenia.
 
-Foundly ma uprościć proces odzyskiwania przedmiotów — od dodania zgłoszenia do oznaczenia sprawy jako zakończonej.
+API obsługuje także zapytanie tekstowe `q`, filtr nazwy miejsca i zakres dat zdarzenia. Obecny formularz filtrów frontendu nie udostępnia tych parametrów. `q` wyszukuje fragment tytułu lub opisu bez rozróżniania wielkości liter; nie jest wyszukiwaniem semantycznym ani rankingiem trafności.
 
-Planowany scenariusz użytkownika:
+### Gałąź experimental
 
-1. Użytkownik zakłada konto i loguje się do aplikacji.
-2. Dodaje zgłoszenie zagubienia lub znalezienia przedmiotu, podając jego cechy oraz miejsce i datę zdarzenia.
-3. Przegląda zgłoszenia, korzysta z wyszukiwarki i filtrów.
-4. Sprawdza potencjalne dopasowania wskazane przez system.
-5. Zarządza własnymi zgłoszeniami, a po odzyskaniu przedmiotu aktualizuje status zgłoszenia.
+`experimental` dodatkowo zawiera usługę embeddingów, rozszerzenie pgvector, kolejkę zadań i automatyczne dopasowywanie LOST/FOUND z rankingiem oraz endpointem odczytu dopasowań dla autora. Te zmiany nie są jeszcze scalone do `main`. Ich konfiguracja i testy są opisane w dokumentacji dostępnej po przełączeniu na tę gałąź. Instrukcje poniżej dotyczą wariantu z `main`.
 
-## Zakres MVP
+Zdjęcia, powiadomienia, widok automatycznych dopasowań na froncie, panel administratora i moderacja pozostają kierunkami dalszego rozwoju.
 
-Poniższa lista określa planowany zakres pierwszej wersji aplikacji. Niezaznaczone pozycje nie są jeszcze potwierdzone jako zrealizowane.
-
-### Konta i dostęp
-
-- [ ] Rejestracja i logowanie użytkowników.
-- [ ] Uwierzytelnianie i autoryzacja dostępu do chronionych operacji.
-- [ ] Ograniczenie edycji i usuwania zgłoszeń do ich właścicieli.
-
-### Zgłoszenia i wyszukiwanie
-
-- [ ] Dodawanie zgłoszeń zagubionych i znalezionych przedmiotów.
-- [ ] Edycja i usuwanie własnych zgłoszeń.
-- [ ] Przeglądanie listy zgłoszeń i ich szczegółów.
-- [ ] Wyszukiwanie i filtrowanie zgłoszeń.
-- [ ] Widok „Moje zgłoszenia”.
-- [ ] Zarządzanie statusem zgłoszenia, w tym oznaczanie przedmiotu jako odzyskanego.
-
-### Integracja i dostarczanie
-
-- [ ] REST API z walidacją danych i obsługą błędów.
-- [ ] Integracja frontendu z backendem.
-- [ ] Specyfikacja OpenAPI i dokumentacja w Swagger UI.
-- [ ] Konteneryzacja i uruchamianie środowiska przez Docker Compose.
-
-## Dalszy rozwój
-
-Po ukończeniu MVP zespół rozważy dodanie:
-
-- podstawowego mechanizmu dopasowywania zgłoszeń (kolejny sprint);
-
-- zdjęć przedmiotów;
-- powiadomień o potencjalnych dopasowaniach;
-- bardziej zaawansowanego algorytmu dopasowywania;
-- mapy lokalizacji;
-- panelu administratora;
-- zgłaszania nieodpowiednich treści.
-
-Realizacja tych funkcji zależy od czasu pozostałego po wdrożeniu i przetestowaniu podstawowej wersji systemu.
-
-## Architektura
-
-Planowana architektura obejmuje aplikację webową, backend udostępniający REST API, bazę danych i osobny komponent uwierzytelniania. Moduł dopasowywania będzie częścią backendu.
+## Architektura i technologie
 
 ```mermaid
-flowchart TD
-    User[Użytkownik] --> Frontend[Frontend: React + TypeScript]
-    Frontend -->|REST API| Backend[Backend: obsługa zgłoszeń i autoryzacja]
-    Frontend -->|Logowanie| Auth[Komponent uwierzytelniania]
-    Backend -->|Weryfikacja tożsamości| Auth
-    Backend --> Database[(Baza danych)]
-    Backend --> Matching[Moduł dopasowywania zgłoszeń]
+flowchart LR
+    User[Użytkownik] --> Frontend[React + TypeScript + Vite]
+    Frontend -->|REST API + Bearer token| Backend[Spring Boot]
+    Frontend -->|Logowanie i rejestracja| Auth[Keycloak]
+    Backend -->|Klucze do weryfikacji JWT| Auth
+    Backend --> Database[(PostgreSQL + PostGIS)]
+    Auth --> AuthDatabase[(PostgreSQL Keycloak)]
 ```
 
-Docelowo komponenty systemu będą uruchamiane w kontenerach Docker. Szczegóły integracji uwierzytelniania zostaną ustalone po wyborze rozwiązania.
-
-## Technologie
-
-| Obszar | Planowane technologie i narzędzia |
+| Obszar | Używane rozwiązania |
 | --- | --- |
-| Frontend | React, TypeScript, Vite, React Router, Tailwind CSS |
-| Komunikacja | REST API; wybór klienta HTTP do ustalenia |
-| Backend | Java 21, Spring Boot, Spring Web MVC, Spring Data JPA, Maven |
-| Baza danych | PostgreSQL; sterownik dodany do backendu, połączenie i model danych do skonfigurowania |
-| Uwierzytelnianie | Rozważane: Keycloak lub rozwiązanie typu Identity; ostateczny wybór do ustalenia |
-| Środowisko uruchomieniowe | Docker, Docker Compose |
-| Dokumentacja API | OpenAPI, Swagger UI |
-| Dokumentacja kodu | Doxygen, zależnie od wybranej technologii i zakresu dokumentacji |
-| Współpraca i kontrola wersji | Git, GitHub |
+| Frontend | React, TypeScript, Vite, React Router, CSS, Lucide |
+| Mapy | Leaflet z podkładem OpenStreetMap, lokalny wykaz polskich miast |
+| Komunikacja | `fetch`, wspólny klient HTTP i adapter autoryzacji w `frontend/src/services/` |
+| Backend | Java 21, Spring Boot, Spring Web MVC, Spring Data JPA, Maven Wrapper |
+| Dane | PostgreSQL, PostGIS, migracje Flyway |
+| Uwierzytelnianie | Keycloak, Authorization Code z PKCE S256, walidacja JWT w Spring Security |
+| Testy | Vitest, Node.js test runner, JUnit, Spring Boot Test, Testcontainers |
+| Kontenery | Docker, Docker Compose; frontend ma osobny Dockerfile z Nginx |
+| Kontrakt API | OpenAPI i Swagger UI |
 
-## Dopasowywanie zgłoszeń
-
-**Zakres kolejnego sprintu.** Bieżące API nie zawiera mechanizmu ani endpointów dopasowywania. Poniższy opis przedstawia plany rozwoju.
-
-Mechanizm dopasowywania ma wskazywać zgłoszenia znalezionych przedmiotów, które mogą odpowiadać zgłoszeniom zagubienia. Pierwsza wersja będzie oparta na prostych, możliwych do wyjaśnienia kryteriach.
-
-Planowane kryteria porównania:
-
-| Kryterium | Sposób wykorzystania |
-| --- | --- |
-| Typ zgłoszenia | Zestawianie zgłoszeń zagubienia ze zgłoszeniami znalezienia |
-| Kategoria | Porównanie rodzaju przedmiotu |
-| Nazwa i opis | Ocena podobieństwa informacji tekstowych |
-| Kolor | Porównanie cech wyglądu |
-| Lokalizacja | Ocena bliskości miejsc zdarzenia |
-| Data | Ocena zgodności czasowej zdarzeń |
-
-Wynik ma zawierać ocenę dopasowania i krótkie uzasadnienie, np. „ta sama kategoria, zbliżona lokalizacja i data”. Sposób obliczania oceny, wagi kryteriów oraz progi wyświetlania wyników zostaną określone podczas implementacji. Ocena ma pomagać w wyszukiwaniu i nie stanowi potwierdzenia własności przedmiotu.
-
-## Struktura repozytorium
-
-Przygotowany podział katalogów:
-
-```text
-.
-├── frontend/              # Aplikacja webowa
-│   ├── src/
-│   │   ├── components/    # Komponenty interfejsu
-│   │   ├── pages/         # Widoki aplikacji
-│   │   ├── layouts/       # Układy stron
-│   │   ├── services/      # Komunikacja z API
-│   │   ├── hooks/         # Własne hooki React
-│   │   ├── types/         # Typy TypeScript
-│   │   └── utils/         # Funkcje pomocnicze
-│   ├── .dockerignore
-│   ├── nginx.conf        # Serwowanie plików i obsługa tras SPA
-│   └── Dockerfile        # Szablon budowania React + TypeScript + Vite
-├── foundly-backend/        # REST API i logika biznesowa; moduł Maven
-│   ├── pom.xml            # Zależności i konfiguracja kompilacji Java 21
-│   ├── mvnw               # Maven Wrapper dla Linux/macOS
-│   ├── mvnw.cmd           # Maven Wrapper dla Windows
-│   ├── .mvn/wrapper/      # Konfiguracja Maven Wrapper
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/pl/szymonprofic/foundlybackend/
-│   │   │   │   ├── FoundlyBackendApplication.java
-│   │   │   │   ├── controllers/   # Obsługa żądań API
-│   │   │   │   ├── services/      # Logika biznesowa
-│   │   │   │   ├── repositories/  # Dostęp do danych
-│   │   │   │   └── models/        # Modele danych
-│   │   │   └── resources/
-│   │   │       └── application.properties
-│   │   └── test/java/pl/szymonprofic/foundlybackend/
-│   │       └── FoundlyBackendApplicationTests.java
-│   └── Dockerfile
-├── docs/                  # Dokumentacja projektu
-├── .env.example           # Szablon lokalnej konfiguracji PostgreSQL
-├── docker-compose.yml     # Szablon usługi PostgreSQL
-└── README.md
-```
-
-Puste katalogi zawierają pliki `.gitkeep`, aby Git zachował strukturę repozytorium. Backend ma gotowy `Dockerfile`. Frontend ma szablon `Dockerfile` dla React + TypeScript + Vite, wymagający dodania kodu aplikacji i plików npm. Plik `docker-compose.yml` zawiera szablon usługi PostgreSQL z trwałym wolumenem i healthcheckiem.
-
-### Moduł backendu i import w IntelliJ IDEA
-
-Backend jest jednym modułem Maven, opisanym przez `foundly-backend/pom.xml`. Katalogi `controllers`, `services`, `repositories` i `models` są pakietami Javy wewnątrz tego modułu. Klasy należy umieszczać pod pakietem `pl.szymonprofic.foundlybackend`, aby znajdowały się w obszarze skanowania klasy startowej Spring Boot.
-
-Główny katalog repozytorium jest zwykłym folderem projektu, bez własnego modułu IntelliJ. Jedynym modułem jest `foundly-backend`. Frontend jest osobną aplikacją React i nie wymaga modułu Javy. Na tym etapie nie są potrzebne nadrzędny `pom.xml` ani plik `module-info.java`.
-
-1. Otwórz główny katalog repozytorium w IntelliJ IDEA.
-2. Jeśli backend nie jest jeszcze widoczny w oknie Maven, kliknij prawym przyciskiem `foundly-backend/pom.xml` i wybierz **Add as Maven Project**.
-3. Ustaw SDK projektu i JDK dla Maven na **Java 21**.
-4. Po synchronizacji Maven IDE powinno oznaczyć `src/main/java` jako źródła, `src/test/java` jako testy, a `src/main/resources` jako zasoby.
-
-Konfiguracja `.idea/` oraz pliki `*.iml` są lokalne i pomijane przez Git. Źródłem konfiguracji backendu dla zespołu jest `pom.xml`.
+Tokeny są przechowywane w pamięci adaptera Keycloak. Komponenty frontendu korzystają z serwisów domenowych; wspólny klient obsługuje JSON i błędy HTTP, a adapter autoryzacji pobiera aktualny token przed chronionymi operacjami.
 
 ## Uruchomienie lokalne
 
-Szczegółowe instrukcje budowania, uruchamiania, testowania i obsługi kontenera znajdują się w [devops.md](docs/devops.md).
+Wymagania dla poniższego wariantu: Docker z Docker Compose oraz Node.js **22.12+ z gałęzi 22 lub 24+** i npm. JDK 21 jest potrzebny do lokalnego uruchamiania i testowania backendu, ale backend kontenerowy buduje się bez lokalnej instalacji Javy.
 
-Backend można uruchomić lokalnie lub w kontenerze z bazą H2 w pamięci, bez instalowania PostgreSQL. Dostępny jest endpoint testowy `GET /api/v1/test`. Frontend jest szkieletem katalogów z przygotowanym szablonem Dockerfile; wymagania i polecenia opisano w [devops.md](docs/devops.md#frontend-w-dockerze-szablon). Compose pozwala uruchomić osobną bazę PostgreSQL zgodnie z [instrukcją konfiguracji](docs/devops.md#postgresql-w-docker-compose-szablon).
+### Baza, Keycloak i backend
 
-Repozytorium można pobrać poleceniami:
-
-```bash
-git clone https://github.com/SzymonProfic/Projekt-zespolowy-aplikacji-internetowej.git
-cd Projekt-zespolowy-aplikacji-internetowej
-```
-
-Do kompilacji backendu potrzebny jest JDK 21 oraz poprawnie ustawione `JAVA_HOME`. Maven Wrapper pobiera wersję Maven wskazaną w `.mvn/wrapper/maven-wrapper.properties`, więc osobna instalacja Maven nie jest wymagana.
-
-Uruchomienie backendu:
+Z głównego katalogu repozytorium:
 
 ```bash
-cd foundly-backend
-./mvnw spring-boot:run
+cp .env.example .env
 ```
 
-W Windows użyj `mvnw.cmd spring-boot:run`. Testy uruchomisz poleceniem `./mvnw test`.
-
-- Endpoint testowy: http://localhost:8080/api/v1/test (zwraca `test`).
-- Konsola H2: http://localhost:8080/h2-console.
-- Dane logowania do konsoli: JDBC URL `jdbc:h2:mem:foundly`, użytkownik `sa`, hasło puste.
-
-Baza H2 służy do pracy lokalnej. Dane są usuwane po zatrzymaniu aplikacji. Docelowe połączenie z PostgreSQL będzie wymagało osobnej konfiguracji.
-
-### Backend w Dockerze
-
-Z głównego katalogu repozytorium wykonaj:
+Jeśli `.env` już istnieje, zachowaj jego ustawienia. Ustaw lokalne hasła i uruchom:
 
 ```bash
-docker build -t foundly-backend ./foundly-backend
-docker run --rm --name foundly-backend -p 8080:8080 foundly-backend
+docker compose --profile app up -d --build
 ```
 
-Wymagany jest uruchomiony Docker; lokalna instalacja Javy i Maven nie jest potrzebna. Obraz jest budowany w dwóch etapach: Maven Wrapper kompiluje aplikację i uruchamia testy na JDK 21, a końcowy obraz zawiera JRE 21 i plik JAR. Aplikacja działa jako użytkownik bez uprawnień roota.
+Compose uruchamia PostGIS, osobną bazę Keycloak, Keycloak, inicjalizację realmu i kont demonstracyjnych oraz backend. Dane baz pozostają w wolumenach. Usługa `keycloak-init` jest jednorazowym zadaniem; po poprawnym zakończeniu ma status `Exited (0)`.
 
-Endpoint testowy jest dostępny pod adresem http://localhost:8080/api/v1/test. Kontener korzysta z opisanej wyżej bazy H2 w pamięci. Zatrzymasz go poleceniem `docker stop foundly-backend` w drugim terminalu.
-
-### PostgreSQL w Docker Compose
-
-W głównym katalogu repozytorium skopiuj `.env.example` do `.env` i ustaw w nim własne hasło, a następnie uruchom:
+Podgląd stanu i logów:
 
 ```bash
-docker compose up -d --wait db
+docker compose ps -a
+docker compose logs -f backend keycloak-init
 ```
 
-Compose uruchamia na razie samą bazę. Backend domyślnie korzysta z H2. Parametry połączenia, obsługę wolumenu i przyszłą integrację opisano w [devops.md](docs/devops.md#postgresql-w-docker-compose-szablon).
+### Frontend
 
-### Całe środowisko (planowane)
-
-Po przygotowaniu konfiguracji kontenerów docelowe uruchomienie całego środowiska będzie wymagało zainstalowanego Dockera z Docker Compose i polecenia:
+W osobnym terminalu:
 
 ```bash
-docker compose up --build
+cd frontend
+npm ci
+npm run dev
 ```
 
-Powyższe polecenie uruchamia obecnie tylko bazę. Uruchomienie całego środowiska będzie możliwe po dodaniu usług backendu i frontendu do Compose oraz kodu aplikacji. Wraz z implementacją ta sekcja zostanie uzupełniona o adresy aplikacji, API i Swagger UI oraz konfigurację usługi uwierzytelniania.
+Domyślne adresy:
+
+| Usługa | Adres |
+| --- | --- |
+| Frontend Vite | http://localhost:5173 |
+| REST API | http://localhost:8080/api/reports |
+| Swagger UI | http://localhost:8080/swagger-ui/index.html |
+| OpenAPI JSON | http://localhost:8080/v3/api-docs |
+| Keycloak | http://localhost:8081 |
+
+Vite wypisuje rzeczywisty adres w terminalu. Konfiguracja logowania i CORS domyślnie zakłada origin `http://localhost:5173`.
+
+Frontend można skonfigurować przez `frontend/.env.local` na podstawie [frontend/.env.example](frontend/.env.example): `VITE_API_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`. Zmienne Vite są odczytywane przy uruchomieniu serwera lub budowaniu aplikacji. Główny `.env` służy konfiguracji Compose.
+
+Frontend ma działający Dockerfile, ale nie jest usługą w bieżącym Compose. Szczegóły pracy z frontendem opisuje [jego README](frontend/README.md). Lokalne uruchomienie backendu przez `./mvnw spring-boot:run` wymaga działających PostGIS i Keycloak oraz odpowiednich zmiennych środowiskowych — patrz [README backendu](foundly-backend/README.md).
+
+Zatrzymanie usług bez usuwania danych:
+
+```bash
+docker compose --profile app down
+```
+
+## Widoki aplikacji
+
+| Adres | Działanie |
+| --- | --- |
+| `/` | Publiczna lista, filtry i paginacja |
+| `/moje-ogloszenia` | Własne zgłoszenia, kończenie i usuwanie po potwierdzeniu |
+| `/ogloszenia/nowe` | Dodanie zgłoszenia po zalogowaniu |
+| `/ogloszenia/:id` | Szczegóły zgłoszenia i mapa |
+| `/ogloszenia/:id/edytuj` | Edycja aktywnego zgłoszenia przez autora |
+
+Puste wyniki API pokazują komunikat o braku ogłoszeń. Błędy pobierania mają osobny komunikat i możliwość ponowienia.
 
 ## REST API
 
-Backend będzie udostępniał REST API. Poniższe endpointy są propozycją kontraktu i mogą zmienić się podczas projektowania systemu.
-
 | Metoda | Ścieżka | Przeznaczenie |
 | --- | --- | --- |
-| `GET` | `/api/reports` | Pobranie listy zgłoszeń z wyszukiwaniem i filtrowaniem |
-| `GET` | `/api/reports/{id}` | Pobranie szczegółów zgłoszenia |
+| `GET` | `/api/categories` | Kategorie zgłoszeń |
+| `GET` | `/api/reports` | Publiczna lista z filtrami i paginacją |
+| `GET` | `/api/reports/{id}` | Publiczne szczegóły zgłoszenia |
+| `GET` | `/api/reports/mine` | Lista zgłoszeń zalogowanego użytkownika |
 | `POST` | `/api/reports` | Utworzenie zgłoszenia |
-| `PUT` | `/api/reports/{id}` | Aktualizacja własnego zgłoszenia |
-| `DELETE` | `/api/reports/{id}` | Usunięcie własnego zgłoszenia |
+| `PUT` | `/api/reports/{id}` | Edycja własnego aktywnego zgłoszenia |
+| `PATCH` | `/api/reports/{id}/status` | Zakończenie własnego zgłoszenia |
+| `DELETE` | `/api/reports/{id}?version=…` | Usunięcie własnego zgłoszenia |
+| `GET` | `/api/me` | Odczyt własnego profilu |
+| `PUT` | `/api/me` | Utworzenie lub synchronizacja profilu na podstawie tokenu, bez body |
 
-Przebieg logowania i endpointy związane z uwierzytelnianiem zostaną ustalone po wyborze jego dostawcy. Schematy danych, parametry zapytań, kody odpowiedzi i zasady dostępu będą opisane w specyfikacji OpenAPI.
+Chronione operacje wymagają access tokenu Keycloak. Edycja, zakończenie i usunięcie sprawdzają autora po stronie backendu. Edycja i zakończenie przekazują `version` w JSON; usunięcie przekazuje go w query. Ponowne zakończenie już zakończonego zgłoszenia jest idempotentne. Konflikt wersji zwraca `409` i wymaga pobrania aktualnego stanu.
 
-## Jakość i testowanie
+Parametry filtrów, formaty JSON, kody odpowiedzi i konfiguracja autoryzacji są opisane w [README backendu](foundly-backend/README.md) oraz Swagger UI.
 
-System ma zapewniać responsywny interfejs działający w popularnych przeglądarkach, walidację danych wejściowych, czytelną obsługę błędów oraz kontrolę dostępu do operacji na zgłoszeniach. Modularna architektura ma ułatwić dalszą rozbudowę aplikacji.
+## Testy i kompilacja
 
-Planowany zakres testów obejmuje:
+Frontend:
 
-- operacje CRUD i zmiany statusów zgłoszeń;
-- walidację poprawnych i niepoprawnych danych;
-- uwierzytelnianie i uprawnienia do zarządzania własnymi zgłoszeniami;
-- wyszukiwanie i filtrowanie;
-- poprawność wyników dopasowywania;
-- integrację frontendu, backendu i usługi uwierzytelniania;
-- podstawowe scenariusze użytkownika, od dodania zgłoszenia do oznaczenia przedmiotu jako odzyskanego.
+```bash
+cd frontend
+npm test
+npm run build
+```
 
-Narzędzia i polecenia uruchamiające testy zostaną dodane po skonfigurowaniu poszczególnych części aplikacji.
+`npm test` uruchamia testy Node.js i Vitest: walidację oraz mapowanie formularzy, miasta, obsługę sesji i profilu, klienta HTTP oraz serwisy API. `npm run build` sprawdza typy TypeScript i tworzy wersję produkcyjną w `dist/`. Samo sprawdzenie typów: `npm run typecheck`.
 
-## Organizacja pracy
+Backend, z JDK 21:
 
-Wstępny podział odpowiedzialności w trzyosobowym zespole:
+```bash
+cd foundly-backend
+./mvnw test
+```
 
-| Rola | Zakres odpowiedzialności |
-| --- | --- |
-| Osoba 1 | Backend, REST API, CRUD, baza danych |
-| Osoba 2 | Frontend, React i TypeScript, UI/UX |
-| Osoba 3 | Dopasowywanie zgłoszeń, uwierzytelnianie, DevOps i integracja |
+W Windows użyj `mvnw.cmd`. Testy obejmują API, walidację, uprawnienia, wersjonowanie zgłoszeń, filtry przestrzenne i synchronizację profili; osobne testy dekodera JWT sprawdzają tokeny z lokalnym JWKS. Integracyjne testy API korzystają z tymczasowego PostgreSQL/PostGIS przez Testcontainers. Przy braku Dockera są pomijane — pełna weryfikacja wymaga uruchomionego Dockera i sprawdzenia liczby pominiętych testów.
 
-Podział może być dostosowywany do bieżących potrzeb projektu. Priorytetem pozostaje ukończenie i integracja funkcji MVP. W przypadku opóźnień funkcje dodatkowe zostaną odłożone, aby zachować czas na testy, konteneryzację i dokumentację.
+Dockerfile backendu pomija kompilację i wykonywanie testów. Budowanie obrazu nie zastępuje `./mvnw test`.
 
-## Harmonogram
+Walidacja konfiguracji Compose, po przygotowaniu `.env`:
 
-Plan realizacji na rok akademicki 2026/2027. Daty określają planowane etapy i nie potwierdzają ich ukończenia.
+```bash
+docker compose --profile app config --quiet
+```
 
-| Termin | Planowany zakres |
-| --- | --- |
-| 07.10.2026 | Ustalenie zakresu, wymagań, podziału zadań i repozytorium |
-| 14.10.2026 | Architektura, model danych, projekt REST API i interfejsu |
-| 21.10.2026 | Backend, baza danych i podstawy frontendu |
-| 28.10.2026 | Operacje CRUD i podstawowe widoki |
-| 04.11.2026 | Rozbudowa API i formularze |
-| 18.11.2026 | Uwierzytelnianie i autoryzacja |
-| 25.11.2026 | Moduł dopasowywania zgłoszeń |
-| 02.12.2026 | Integracja dopasowywania z frontendem |
-| 09.12.2026 | Integracja frontendu z backendem |
-| 16.12.2026 | Widok „Moje zgłoszenia”, statusy i dopracowanie UX |
-| 30.12.2026 | Testy i poprawki |
-| 06.01.2027 | Konteneryzacja |
-| 13.01.2027 | Dokumentacja i przygotowanie prezentacji |
-| 20.01.2027 | Prezentacja i oddanie projektu |
-| 27.01.2027 | Końcowe zaliczenie |
+## Struktura repozytorium
+
+```text
+.
+├── frontend/
+│   ├── src/
+│   │   ├── components/       # Formularze, karty, akcje zgłoszeń, mapy i sesja
+│   │   ├── data/             # Lokalny wykaz polskich miast
+│   │   ├── hooks/            # Pobieranie szczegółów i anulowanie żądań
+│   │   ├── pages/            # Lista, własne zgłoszenia, szczegóły, dodawanie i edycja
+│   │   ├── services/         # Klient HTTP, adapter autoryzacji, API i Keycloak
+│   │   ├── types/            # Typy TypeScript
+│   │   └── utils/            # Walidacja i mapowanie danych
+│   ├── test/                 # Testy formularza uruchamiane przez Node.js
+│   └── Dockerfile            # Budowanie Vite i serwowanie przez Nginx
+├── foundly-backend/
+│   ├── src/main/java/        # Kontrolery, serwisy, repozytoria, DTO i modele
+│   ├── src/main/resources/   # Konfiguracja i migracje Flyway
+│   ├── src/test/java/        # Testy API i walidacji JWT
+│   ├── pom.xml
+│   └── Dockerfile
+├── docker/keycloak/         # Realm, inicjalizacja kont i motyw logowania
+├── docs/                    # Dokumentacja projektu
+├── .env.example             # Konfiguracja lokalnych usług
+├── docker-compose.yml       # PostGIS, Keycloak i opcjonalny backend w profilu app
+└── README.md
+```
+
+Backend jest osobnym modułem Maven. W IntelliJ IDEA otwórz główny katalog, dodaj `foundly-backend/pom.xml` jako projekt Maven i ustaw JDK 21. Pliki IDE, lokalne `.env`, `.venv`, zależności npm i wyniki budowania są pomijane przez Git.
 
 ## Dokumentacja
 
-W ramach projektu planowane są:
-
-- **dokumentacja techniczna** — architektura, model danych i opis modułów;
-- **dokumentacja API** — specyfikacja OpenAPI i Swagger UI;
-- **dokumentacja użytkowa** — najważniejsze scenariusze korzystania z aplikacji;
-- **dokumentacja wdrożeniowa** — konfiguracja środowiska i uruchamianie usług;
-- **dokumentacja kodu** — z wykorzystaniem Doxygen w uzgodnionym zakresie.
-
-Materiały będą dodawane do katalogu `docs/` wraz z postępem prac.
+- [Backend](foundly-backend/README.md) — konfiguracja, kontrakt API, konta demonstracyjne, Swagger i testy.
+- [Frontend](frontend/README.md) — widoki, formularze, mapy, sesja i warstwa API.
+- [Model danych](foundly-backend/model.md) — opis modelu i założeń jego rozwoju.
+- [Motyw Keycloak](docker/keycloak/themes/foundly/README.md) — logowanie, rejestracja i konfiguracja motywu.

@@ -6,13 +6,13 @@ import { ReportCard } from '../components/ReportCard/ReportCard';
 import { ReportActions } from '../components/ReportActions/ReportActions';
 import { LocationMap } from '../components/LocationMap/LocationMap';
 import { CitySearch } from '../components/CitySearch/CitySearch';
-import { demoReports } from '../demo/reports';
 import { getCategories, getMyReports, getReports, type ReportFilters } from '../services/reports';
 import { login } from '../services/auth';
 import type { Category, ReportDetails } from '../types/report';
 
 const emptyFilters: ReportFilters = { type: '', status: 'ACTIVE', categoryCode: '', centerLabel: '', center: null, radiusKm: 5 };
 const radiusFormatter = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 });
+type CategoryLoadState = 'loading' | 'ready' | 'error';
 
 export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const defaultFilters: ReportFilters = mine ? { ...emptyFilters, status: 'ALL' } : emptyFilters;
@@ -22,6 +22,8 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [locationError, setLocationError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryLoadState, setCategoryLoadState] = useState<CategoryLoadState>('loading');
+  const [categoryAttempt, setCategoryAttempt] = useState(0);
   const [reports, setReports] = useState<ReportDetails[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -32,19 +34,20 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
   const [attempt, setAttempt] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
 
-  const displayedReports = !mine && reports.length === 0 && totalElements === 0 && !appliedFilters.center
-    ? demoReports.filter((report) => {
-      const statusMatches = appliedFilters.status === 'ALL' || (appliedFilters.status === 'RESOLVED' ? report.recovered : !report.recovered);
-      const typeMatches = !appliedFilters.type || report.type === appliedFilters.type;
-      const categoryMatches = !appliedFilters.categoryCode || categories.find((category) => category.code === appliedFilters.categoryCode)?.name === report.category;
-      return statusMatches && typeMatches && categoryMatches;
-    })
-    : reports;
-  const showingDemoReports = displayedReports !== reports;
-
   useEffect(() => {
-    getCategories().then(setCategories).catch(() => setError('Nie udało się pobrać kategorii.'));
-  }, []);
+    const controller = new AbortController();
+    setCategoryLoadState('loading');
+    getCategories(controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setCategories(items);
+        setCategoryLoadState('ready');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCategoryLoadState('error');
+      });
+    return () => controller.abort();
+  }, [categoryAttempt]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -123,7 +126,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
           <div className="filters__grid">
           <label className="filter-field"><span>Rodzaj zgłoszenia</span><select value={filters.type} onChange={(event) => changeFilter('type', event.target.value as ReportFilters['type'])}><option value="">Wszystkie</option><option value="lost">Zgubione</option><option value="found">Znalezione</option></select></label>
           <label className="filter-field"><span>Status</span><select value={filters.status} onChange={(event) => changeFilter('status', event.target.value as ReportFilters['status'])}><option value="ACTIVE">Aktywne</option><option value="RESOLVED">Zakończone</option><option value="ALL">Wszystkie</option></select></label>
-          <label className="filter-field"><span>Kategoria</span><select value={filters.categoryCode} onChange={(event) => changeFilter('categoryCode', event.target.value)}><option value="">Wszystkie kategorie</option>{categories.map((category) => <option key={category.code} value={category.code}>{category.name}</option>)}</select></label>
+          <label className="filter-field"><span>Kategoria</span><select value={filters.categoryCode} disabled={categoryLoadState !== 'ready'} onChange={(event) => changeFilter('categoryCode', event.target.value)}><option value="">{categoryLoadState === 'loading' ? 'Ładowanie kategorii…' : 'Wszystkie kategorie'}</option>{categories.map((category) => <option key={category.code} value={category.code}>{category.name}</option>)}</select></label>
           <CitySearch value={locationQuery} error={locationError}
             onChange={(query) => {
               setLocationQuery(query);
@@ -137,6 +140,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
               setMapOpen(true);
             }} />
           </div>
+          {categoryLoadState === 'error' && <div className="filters__category-error" role="alert"><span>Nie udało się pobrać kategorii.</span><button className="filters__clear" type="button" onClick={() => setCategoryAttempt((value) => value + 1)}>Ponów pobieranie kategorii</button></div>}
           <details className="filters__spatial" open={mapOpen} onToggle={(event) => setMapOpen(event.currentTarget.open)}>
             <summary>Mapa i promień wyszukiwania{filters.center ? ` · ${radiusFormatter.format(filters.radiusKm)} km` : ''}</summary>
             <p className="filters__map-help">
@@ -178,7 +182,7 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
 
       <section className="results" aria-live="polite">
         {statusMessage && <p className="results__message" role="status">{statusMessage}</p>}
-        <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{showingDemoReports ? `${displayedReports.length} przykładowe` : `${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
+        <div className="results__heading"><h2>Ogłoszenia</h2>{!loading && !error && <span>{`${totalElements} ${totalElements === 1 ? 'wynik' : totalElements >= 2 && totalElements <= 4 ? 'wyniki' : 'wyników'}`}</span>}</div>
         {appliedFilters.center && <p className="results__area">Obszar wyszukiwania: {appliedFilters.centerLabel}, w promieniu {radiusFormatter.format(appliedFilters.radiusKm)} km. Najbliższe ogłoszenia najpierw.</p>}
         {error && <div className="results__message results__message--error" role="alert">
           <p>{error}</p>
@@ -188,13 +192,12 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
           }}>{unauthorized ? 'Zaloguj się' : 'Spróbuj ponownie'}</button>
         </div>}
         {loading && <div className="results__message">Ładowanie ogłoszeń…</div>}
-        {!loading && !error && showingDemoReports && <p className="results__demo-note">To przykładowe zgłoszenia do podglądu. Rzeczywiste ogłoszenia pojawią się po dodaniu ich w aplikacji.</p>}
-        {!loading && !error && displayedReports.length === 0 && <div className="results__message">{mine ? 'Nie masz ogłoszeń spełniających wybrane kryteria. Dodaj zgłoszenie lub zmień filtry.' : 'Nie znaleziono ogłoszeń spełniających wybrane kryteria.'}</div>}
-        {!loading && !error && displayedReports.length > 0 && (
+        {!loading && !error && reports.length === 0 && <div className="results__message">{mine ? 'Nie masz ogłoszeń spełniających wybrane kryteria. Dodaj zgłoszenie lub zmień filtry.' : 'Nie znaleziono ogłoszeń spełniających wybrane kryteria.'}</div>}
+        {!loading && !error && reports.length > 0 && (
           <div className="results__grid">
-            {mine ? reports.map((report) => (
+            {reports.map((report) => (
               <ReportCard key={report.id} report={report} detailsTo={`/ogloszenia/${report.id}`}
-                actions={<ReportActions report={report}
+                actions={mine ? <ReportActions report={report}
                   onRefresh={() => setAttempt((value) => value + 1)}
                   onDeleted={() => {
                     setReports((current) => current.filter((item) => item.id !== report.id));
@@ -205,17 +208,11 @@ export function ReportListPage({ mine = false }: { mine?: boolean }) {
                     setReports((current) => current.map((item) => item.id === updated.id ? updated : item));
                     setStatusMessage(`Zgłoszenie „${updated.title}” zostało zakończone.`);
                     setAttempt((value) => value + 1);
-                  }} />} />
-            )) : displayedReports.map((report) => (
-              <ReportCard
-                key={report.id}
-                report={report}
-                detailsTo={showingDemoReports ? undefined : `/ogloszenia/${report.id}`}
-              />
+                  }} /> : undefined} />
             ))}
           </div>
         )}
-        {!loading && !error && !showingDemoReports && totalPages > 1 && <nav className="pagination" aria-label="Stronicowanie wyników"><button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Poprzednia</button><span>Strona {page + 1} z {totalPages}</span><button type="button" disabled={page + 1 >= totalPages} onClick={() => setPage((value) => value + 1)}>Następna</button></nav>}
+        {!loading && !error && totalPages > 1 && <nav className="pagination" aria-label="Stronicowanie wyników"><button type="button" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Poprzednia</button><span>Strona {page + 1} z {totalPages}</span><button type="button" disabled={page + 1 >= totalPages} onClick={() => setPage((value) => value + 1)}>Następna</button></nav>}
       </section>
     </>
   );

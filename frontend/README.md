@@ -35,7 +35,7 @@ Przy ręcznej weryfikacji zaloguj się [kontem demonstracyjnym](../foundly-backe
 
 | Adres | Działanie |
 | --- | --- |
-| `/` | Lista i filtry ogłoszeń. Przykładowe karty mogą pojawić się przy pustych wynikach i nie mają adresów w API. |
+| `/` | Lista i filtry ogłoszeń pobieranych wyłącznie z API. Przy pustych wynikach pojawia się komunikat o braku ogłoszeń. |
 | `/moje-ogloszenia` | Ogłoszenia zalogowanego użytkownika, domyślnie aktywne i zakończone, z filtrami i stronicowaniem. Autor może zakończyć aktywne zgłoszenie lub usunąć własne zgłoszenie po potwierdzeniu. Wejście przez „Twoje konto” w nagłówku. |
 | `/ogloszenia/:id` | Publiczny odczyt szczegółów. Przycisk „Edytuj zgłoszenie” widzi autor aktywnego zgłoszenia. |
 | `/ogloszenia/nowe` | Dodawanie zgłoszenia po zalogowaniu. |
@@ -45,7 +45,7 @@ Formularze korzystają ze wspólnego komponentu i pobierają kategorie z API. Wy
 
 ### Miejsce zdarzenia
 
-W filtrach listy pole „Lokalizacja” podpowiada polskie miasta z lokalnego wykazu, także bez polskich znaków. Miasta o tej samej nazwie są rozróżniane województwem. Wybór podpowiedzi ustawia środek i otwiera mapę z domyślnym promieniem 5 km. Sekcja „Mapa i promień wyszukiwania” pozwala doprecyzować środek kliknięciem lub przeciągnięciem znacznika i ustawić promień od 0,5 do 100 km. Nie trzeba wybierać miasta, aby wskazać punkt na mapie. Zmiana wpisywanej nazwy usuwa poprzedni punkt; przed wyszukiwaniem trzeba wybrać podpowiedź albo wskazać punkt. Wyszukiwanie ulic i pełnych adresów nie jest obsługiwane. Okrąg pokazuje zasięg. „Pokaż ogłoszenia” stosuje obszar razem z pozostałymi filtrami, a wyniki są sortowane od najbliższych. „Usuń obszar” wyłącza ograniczenie przestrzenne przy następnym zastosowaniu filtrów, a „Wyczyść” od razu resetuje wszystkie filtry. Frontend przekazuje `latitude`, `longitude` i `radiusMeters` do istniejącego API wyszukiwania w promieniu. Nazwa wybranego miasta służy do prezentacji; frontend nie przesyła parametru tekstowego `location`, więc nie zawęża dodatkowo wyników według etykiety miejsca.
+W filtrach listy pole „Lokalizacja” podpowiada polskie miasta z lokalnego wykazu, także bez polskich znaków. Miasta o tej samej nazwie są rozróżniane województwem. Wybór podpowiedzi ustawia środek i otwiera mapę z domyślnym promieniem 5 km. Sekcja „Mapa i promień wyszukiwania” pozwala doprecyzować środek kliknięciem lub przeciągnięciem znacznika i ustawić promień od 0,5 do 30 km. Nie trzeba wybierać miasta, aby wskazać punkt na mapie. Zmiana wpisywanej nazwy usuwa poprzedni punkt; przed wyszukiwaniem trzeba wybrać podpowiedź albo wskazać punkt. Wyszukiwanie ulic i pełnych adresów nie jest obsługiwane. Okrąg pokazuje zasięg. „Pokaż ogłoszenia” stosuje obszar razem z pozostałymi filtrami, a wyniki są sortowane od najbliższych. „Usuń obszar” wyłącza ograniczenie przestrzenne przy następnym zastosowaniu filtrów, a „Wyczyść” od razu resetuje wszystkie filtry. Frontend przekazuje `latitude`, `longitude` i `radiusMeters` do istniejącego API wyszukiwania w promieniu. Nazwa wybranego miasta służy do prezentacji; frontend nie przesyła parametru tekstowego `location`, więc nie zawęża dodatkowo wyników według etykiety miejsca.
 
 Wpisz nazwę miasta, np. **Częstochowa**. Po przecinku możesz dopisać dzielnicę lub ulicę, np. **Częstochowa, Raków**. Przy powtarzającej się nazwie miasta formularz poprosi o województwo, np. **Olsztyn, śląskie**.
 
@@ -66,8 +66,6 @@ src/
 │   ├── ReportCard/          # Karta ogłoszenia
 │   ├── ReportForm/          # Wspólny formularz dodawania i edycji
 │   └── ReportPage/          # Ramka widoków i komunikaty pobierania
-├── demo/
-│   └── reports.ts           # Trzy przykładowe ogłoszenia
 ├── hooks/                   # Pobieranie szczegółów, ponawianie i anulowanie żądań
 ├── pages/                   # Lista, szczegóły, dodawanie i edycja
 ├── services/                # Wywołania API i sesja Keycloak
@@ -105,17 +103,8 @@ export function Example() {
 | Właściwość | Typ | Wymagana | Znaczenie |
 | --- | --- | --- | --- |
 | `report` | `Report` | Tak | Dane wyświetlanego ogłoszenia. |
-| `onSelect` | `(report: Report) => void` | Nie | Funkcja wywoływana po wyborze karty. Jej przekazanie wyświetla przycisk „Wybierz”. |
-| `detailsTo` | `string` | Nie | Adres szczegółów. W kontekście routera wyświetla link „Zobacz szczegóły” zamiast przycisku „Wybierz”. |
-
-Przykład obsługi wyboru:
-
-```tsx
-<ReportCard
-  report={report}
-  onSelect={(selectedReport) => console.log(selectedReport.id)}
-/>
-```
+| `detailsTo` | `string` | Nie | Adres szczegółów. W kontekście routera wyświetla link „Zobacz szczegóły”. |
+| `actions` | `ReactNode` | Nie | Dodatkowe akcje pod stopką karty, np. zakończenie lub usunięcie własnego zgłoszenia. |
 
 `Report` zawiera pola `id`, `title`, `type`, `category`, `location`, `date`, `color` i `description` oraz opcjonalne `owner` i `recovered`. Data zdarzenia ma format `YYYY-MM-DD`; na karcie jest formatowana po polsku. Niepoprawna data wyświetla tekst „Brak daty”.
 
